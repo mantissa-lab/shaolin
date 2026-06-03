@@ -114,9 +114,15 @@
 - **Migrations are a release step.** With `SHAOLIN_ENV=production`, boot does NOT auto-create schema or
   migrate; run `shaolin migrate` once per release (event-store + jobs schema + read-model migrations,
   advisory-locked so concurrent replicas don't race). In dev it's automatic.
-- **HTTP limits/observability.** Request bodies are capped (`SHAOLIN_MAX_BODY_BYTES`, default 1 MiB →
-  413). Every response carries `x-request-id` (propagated from an inbound header), and one structured
-  JSON access-log line is emitted per request (`SHAOLIN_LOG=off` to silence).
+- **HTTP limits.** Request bodies are capped (`SHAOLIN_MAX_BODY_BYTES`, default 1 MiB → 413). Every
+  response carries `x-request-id` (propagated from an inbound header).
+- **Unified logger `Shaolin::Log`** — one structured pipeline for everything (HTTP request line, worker,
+  scheduler, app): `Shaolin::Log.info("msg", **fields)`, leveled (`SHAOLIN_LOG_LEVEL`), JSON in
+  production / pretty in dev, fiber-local context (`Shaolin::Log.with(run_id:) { }`) + auto
+  tenant/request_id correlation, pluggable sinks (`Sinks::Stdout`/`Pretty`/`Batch`).
+  `SHAOLIN_LOG_EVERYTHING=1` logs every command/query/event (full firehose; the event store stays the
+  durable source of truth). `SHAOLIN_LOG=off` silences. BigQuery the easy way: stdout JSON → Cloud
+  Logging → a Log Router BigQuery sink (zero app code). See `docs/LOGGING.md`.
 - **Error boundary.** Any exception escaping a controller becomes the JSON error contract, never a raw
   stack trace; in production the 500 message is generic. Optimistic-concurrency clashes
   (`RubyEventStore::WrongExpectedEventVersion`) map to 409 automatically.
@@ -154,6 +160,7 @@
 - Cross-module reactor example: `examples/cross_module` — `ruby examples/cross_module/verify.rb`
   (module B reacts to module A's event by topic; isolation-clean).
 - What changed recently / upgrading: `CHANGELOG.md`.
+- Logging & shipping logs to BigQuery: `docs/LOGGING.md`.
 - Design specs: `docs/superpowers/specs/`.
 - Stack: dry-system, ruby_event_store + aggregate_root, ActiveRecord (Postgres), dry-validation/
   dry-struct, hanami-router, Falcon/Puma, Thor; jobs/outbox (PG `SKIP LOCKED` + advisory locks),

@@ -33,6 +33,13 @@ module Shaolin
           Shaolin::Kernel.register("cqrs.aggregate_repository",
                                    AggregateRepository.new(event_store, transaction: transaction))
 
+          # Firehose: log every domain event when SHAOLIN_LOG_EVERYTHING is on.
+          if Shaolin::Log.everything?
+            event_store.subscribe_to_all_events(
+              ->(event) { Shaolin::Log.info("event", type: event.event_type, event_id: event.event_id) }
+            )
+          end
+
           Shaolin::CQRS.wire_modules(command_bus, query_bus, event_store)
         end
       end

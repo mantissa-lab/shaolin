@@ -27,10 +27,25 @@ module Shaolin
           raise UnregisteredCommand, "no handler registered for #{command.class}"
         end
 
-        @bus.call(command)
+        return @bus.call(command) unless Shaolin::Log.everything?
+
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        begin
+          result = @bus.call(command)
+          Shaolin::Log.info("command", command: command.class.name,
+                                       duration_ms: ms_since(started))
+          result
+        rescue StandardError => e
+          Shaolin::Log.error("command_failed", command: command.class.name, error: e.message)
+          raise
+        end
       end
 
       def registered?(command_class) = @handlers.key?(command_class)
+
+      private
+
+      def ms_since(started) = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round(1)
     end
   end
 end
