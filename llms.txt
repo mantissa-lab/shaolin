@@ -95,6 +95,24 @@
   at-least-once consumption. A reactor can publish to Redis Streams or RabbitMQ with zero code change.
 - **Broker — Pub/Sub** (`Shaolin::Redis::PubSub`): fire-and-forget fan-out (no persistence/acks).
 
+## Production notes
+
+- **Atomic outbox (automatic).** With the `:active_record` provider, a command's unit of work runs in
+  ONE DB transaction — event append + sync projections + outbox enqueue commit or roll back together.
+  No manual `transaction` needed; a crash can't leave an event without its reactor job. Enqueue is
+  idempotent (unique `(reactor, event_id)`), so re-publishing never duplicates a job.
+- **Connection pool.** Set `DB_POOL` >= concurrent fibers/threads. `shaolin worker --threads N` needs
+  `DB_POOL>=N` (it warns otherwise). Falcon is fiber-per-request → `shaolin server` sets `:fiber`
+  isolation automatically; the worker stays `:thread`.
+- **Migrations are a release step.** With `SHAOLIN_ENV=production`, boot does NOT auto-create schema or
+  migrate; run `shaolin migrate` once per release (event-store + jobs schema + read-model migrations,
+  advisory-locked so concurrent replicas don't race). In dev it's automatic.
+- **HTTP limits/observability.** Request bodies are capped (`SHAOLIN_MAX_BODY_BYTES`, default 1 MiB →
+  413). Every response carries `x-request-id` (propagated from an inbound header), and one structured
+  JSON access-log line is emitted per request (`SHAOLIN_LOG=off` to silence).
+- **Operating the queue.** `shaolin jobs stats` (counts by status), `shaolin jobs dead` (inspect
+  dead-lettered), `shaolin jobs retry <id>` (re-queue after a fix).
+
 ## Reference
 
 - Working example: `examples/demo` (a `users` module). Run `ruby examples/demo/verify.rb`.

@@ -74,4 +74,30 @@ RSpec.describe "shaolin-http integration" do
       expect(session.last_response.status).to eq(404)
     end
   end
+
+  it "echoes an x-request-id on every response" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+      session.get("/healthz")
+      expect(session.last_response.headers["x-request-id"]).to match(/\A[0-9a-f-]{36}\z/)
+    end
+  end
+
+  it "propagates an inbound X-Request-Id" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+      session.get("/healthz", {}, "HTTP_X_REQUEST_ID" => "trace-123")
+      expect(session.last_response.headers["x-request-id"]).to eq("trace-123")
+    end
+  end
+
+  it "rejects an over-large body with 413 (Content-Length)" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+      big = "x" * (Shaolin::HTTP::RewindableInput::MAX_BODY_BYTES + 1)
+      session.post("/users", JSON.generate(name: big), "CONTENT_TYPE" => "application/json")
+      expect(session.last_response.status).to eq(413)
+      expect(JSON.parse(session.last_response.body).dig("error", "code")).to eq("payload_too_large")
+    end
+  end
 end

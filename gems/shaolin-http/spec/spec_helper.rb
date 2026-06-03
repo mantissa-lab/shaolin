@@ -1,3 +1,5 @@
+ENV["SHAOLIN_LOG"] ||= "off" # silence the structured access log in tests
+
 require "shaolin/core"
 require "shaolin/http"
 require "rack/test"

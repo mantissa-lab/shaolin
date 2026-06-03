@@ -10,14 +10,24 @@ module Shaolin
     class Outbox
       DEFAULT_BACKOFF = [1, 10, 60, 600, 3600].freeze # seconds
 
+      # Idempotent: ON CONFLICT DO NOTHING on the (reactor, event_id) unique
+      # index, so re-publishing an event never enqueues a duplicate — and, since
+      # this runs as a sync subscriber inside the event-append transaction, a
+      # conflict can't abort that transaction (unlike a raising create!).
       def enqueue(reactor:, event:, run_at: Time.now)
-        OutboxJob.create!(
-          reactor: reactor,
-          event_id: event.event_id,
-          event_type: event.event_type,
-          payload: YAML.dump(event.data),
-          status: "pending",
-          run_at: run_at
+        now = Time.now
+        OutboxJob.insert_all(
+          [{
+            reactor: reactor,
+            event_id: event.event_id,
+            event_type: event.event_type,
+            payload: YAML.dump(event.data),
+            status: "pending",
+            run_at: run_at,
+            created_at: now,
+            updated_at: now
+          }],
+          unique_by: %i[reactor event_id]
         )
       end
 
@@ -51,6 +61,25 @@ module Shaolin
           delay = backoff[[attempts - 1, backoff.size - 1].min]
           job.update!(status: "failed", attempts: attempts, last_error: error.to_s, run_at: now + delay)
         end
+      end
+
+      # --- observability / operations ---
+
+      # Counts by status, e.g. { "pending" => 3, "failed" => 1, "dead" => 0 }.
+      # Powers `shaolin jobs stats` and queue-depth metrics.
+      def stats
+        OutboxJob.group(:status).count
+      end
+
+      # Dead-lettered jobs (exhausted retries), newest first — to inspect.
+      def dead(limit: 50)
+        OutboxJob.where(status: "dead").order(updated_at: :desc).limit(limit).to_a
+      end
+
+      # Re-queue a dead job for another attempt (after fixing the cause).
+      def retry!(id, now: Time.now)
+        OutboxJob.where(id: id, status: "dead")
+                 .update_all(status: "pending", attempts: 0, last_error: nil, run_at: now)
       end
     end
   end
