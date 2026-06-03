@@ -144,6 +144,7 @@
   outbox row → `worker.run_once` → reactor side effect).
 - Redis example: `examples/redis` — `ruby examples/redis/verify.rb` (cache + store + Streams broker;
   needs a local `redis-server`).
+- What changed recently / upgrading: `CHANGELOG.md`.
 - Design specs: `docs/superpowers/specs/`.
 - Stack: dry-system, ruby_event_store + aggregate_root, ActiveRecord (Postgres), dry-validation/
   dry-struct, hanami-router, Falcon/Puma, Thor; jobs/outbox (PG `SKIP LOCKED` + advisory locks),

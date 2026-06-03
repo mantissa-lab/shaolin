@@ -68,7 +68,8 @@ cd gems/shaolin-core && bundle exec rspec   # per-gem suites
 bundle exec ruby examples/demo/verify.rb    # the demo, end-to-end
 ```
 
-See [`llms.txt`](llms.txt) and [`AGENTS.md`](AGENTS.md) to drive shaolin as an agent, and
+See [`llms.txt`](llms.txt) and [`AGENTS.md`](AGENTS.md) to drive shaolin as an agent,
+[`CHANGELOG.md`](CHANGELOG.md) for what changed recently / upgrading, and
 `docs/superpowers/specs/` for the design specs.
 
 ## License
