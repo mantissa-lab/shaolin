@@ -59,9 +59,36 @@ RSpec.describe Shaolin::CLI::Describe do
       signups = result[:modules].find { |m| m[:name] == "signups" }
 
       expect(signups[:reactors]).to eq([
-        { class: "NotifyReactor", on: ["Signups::Events::SignupCompleted"], file: "notify_reactor.rb" }
+        { class: "NotifyReactor", on: ["Signups::Events::SignupCompleted"], topics: [], file: "notify_reactor.rb" }
       ])
       expect(result[:scheduled]).to include(name: "nightly_digest", every: "1d")
+    end
+  end
+
+  it "shows a reactor's cross-module topic subscriptions and the module's subscribed topics" do
+    Dir.mktmpdir do |root|
+      modules = write_module(root, "dispatches", <<~RUBY)
+        Shaolin.module "dispatches" do
+          imports events: ["conversions.conversion_recorded"]
+        end
+      RUBY
+      FileUtils.mkdir_p(File.join(root, "app/modules/dispatches/reactors"))
+      File.write(File.join(root, "app/modules/dispatches/reactors/conversion_dispatcher.rb"), <<~RUBY)
+        module Dispatches
+          module Reactors
+            class ConversionDispatcher < Shaolin::Jobs::Reactor
+              on("conversions.conversion_recorded") { |e| nil }
+            end
+          end
+        end
+      RUBY
+
+      mod = described_class.map(modules)[:modules].find { |m| m[:name] == "dispatches" }
+      expect(mod[:events_subscribed]).to eq(["conversions.conversion_recorded"])
+      expect(mod[:reactors]).to eq([
+        { class: "ConversionDispatcher", on: [], topics: ["conversions.conversion_recorded"],
+          file: "conversion_dispatcher.rb" }
+      ])
     end
   end
 
