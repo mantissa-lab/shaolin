@@ -59,6 +59,34 @@ module Shaolin
         say "projections rebuilt#{name ? " for #{name}" : ""}", :green
       end
 
+      desc "lint", "Check module isolation (no cross-module reach-ins) — Prism static analysis"
+      def lint
+        require_relative "isolation"
+        modules_dir = File.join(Dir.pwd, "app/modules")
+        raise Thor::Error, "no app/modules in #{Dir.pwd}" unless File.directory?(modules_dir)
+
+        violations = Isolation.new(modules_dir).violations
+        if violations.empty?
+          say "isolation OK — modules are self-contained", :green
+        else
+          violations.each { |v| say v.to_s, :red }
+          raise Thor::Error, "#{violations.size} isolation violation(s)"
+        end
+      end
+
+      desc "graph", "Print the module dependency graph (imports + events) from manifests"
+      def graph
+        require "shaolin/core"
+        Shaolin::Registry.reset!
+        Dir.glob(File.join(Dir.pwd, "app/modules", "*", "module.rb")).sort.each { |f| require f }
+        Shaolin::Registry.all.each do |mod|
+          say mod.name, :cyan
+          mod.imports.each          { |i| say "  imports:    #{i}" }
+          mod.events_published.each { |e| say "  publishes:  #{e}" }
+          mod.subscribed_events.each { |e| say "  subscribes: #{e}" }
+        end
+      end
+
       desc "routes", "List modules and the commands/events they expose"
       def routes
         boot_app!
