@@ -1,23 +1,15 @@
-require "json"
-require "time"
+require "shaolin/core"
 
 module Shaolin
   module Jobs
-    # Structured (JSON) logging for the async side — the worker and scheduler —
-    # mirroring the HTTP RequestLogger so reactor failures, dead-letters, and
-    # fired schedules are visible in logs (not just the DB). SHAOLIN_LOG=off
-    # silences it; inject a different sink with `Log.output=`.
+    # Thin shim onto the unified Shaolin::Log so the worker/scheduler share one
+    # structured pipeline + sinks with the rest of the framework. Kept as a named
+    # entry point for the async side (reactor.done/retry/dead, schedule.*).
     module Log
-      @output = $stdout
+      module_function
 
-      class << self
-        attr_accessor :output
-
-        def emit(level, msg, **fields)
-          return if ENV["SHAOLIN_LOG"] == "off"
-
-          @output.puts(JSON.generate({ ts: Time.now.utc.iso8601(3), level: level, msg: msg }.merge(fields)))
-        end
+      def emit(level, msg, **fields)
+        Shaolin::Log.emit(level.to_sym, msg, **fields)
       end
     end
   end

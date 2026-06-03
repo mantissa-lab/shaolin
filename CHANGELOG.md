@@ -75,6 +75,20 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   Runs inside the error boundary + request logger, before the router; can short-circuit (401/429).
   **Devise is Rails-coupled and does NOT work standalone — use warden or jwt.**
 
+### Logging (`Shaolin::Log`)
+
+- **Unified structured logger** that everything routes through (HTTP access line, worker, scheduler,
+  and app code): `Shaolin::Log.info("msg", **fields)` / `warn` / `error` / `debug`. JSON in production
+  (`Sinks::Stdout`), human-readable in dev (`Sinks::Pretty`); leveled via `SHAOLIN_LOG_LEVEL`.
+- **Context correlation**: `Shaolin::Log.with(run_id:) { ... }` plus auto-attached tenant and request_id
+  thread/fiber-local, so one line ties a whole request/job together.
+- **Pluggable sinks** (`#call(record)`); `Sinks::Batch` buffers + flushes off the hot path for DB sinks.
+- **Firehose**: `SHAOLIN_LOG_EVERYTHING=1` logs every command, query, and domain event (the event store
+  remains the durable source of truth).
+- **Ship to BigQuery the easy way** (GCP): structured stdout → Cloud Logging → a Log Router BigQuery
+  sink, zero app code. `docs/LOGGING.md` has the setup (and a direct `Batch` sink for non-GCP).
+- `RequestLogger` (HTTP) and the worker/scheduler logs now flow through `Shaolin::Log`.
+
 ### Operations
 
 - **Migrations are a release step.** With `SHAOLIN_ENV=production`, boot does not auto-create schema or

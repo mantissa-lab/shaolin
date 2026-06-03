@@ -20,6 +20,7 @@ module Shaolin
         handler = @handlers[query.class]
         raise UnregisteredQuery, "no handler registered for #{query.class}" unless handler
 
+        Shaolin::Log.info("query", query: query.class.name) if Shaolin::Log.everything?
         handler.call(query)
       end
 
