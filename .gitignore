@@ -1,0 +1,6 @@
+/.bundle/
+/vendor/bundle/
+/tmp/
+/coverage/
+*.gem
+.byebug_history
