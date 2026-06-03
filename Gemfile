@@ -5,6 +5,7 @@ gem "shaolin-cqrs", path: "gems/shaolin-cqrs"
 gem "shaolin-activerecord", path: "gems/shaolin-activerecord"
 gem "shaolin-dto", path: "gems/shaolin-dto"
 gem "shaolin-http", path: "gems/shaolin-http"
+gem "shaolin-server", path: "gems/shaolin-server"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
