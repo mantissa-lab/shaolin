@@ -57,7 +57,8 @@ Write and read are fully separated (CQRS); state is rebuilt by replaying events 
 | `shaolin-dto` | boundary validation + typed value objects |
 | `shaolin-http` | controllers → commands/queries; Rack app (hanami-router) |
 | `shaolin-server` | Falcon/Puma adapters + graceful shutdown |
-| `shaolin-cli` | `shaolin new` / `g module` generators + runners |
+| `shaolin-cli` | `shaolin new` / `g module` generators + runners + `lint`/`graph`/`describe` |
+| `shaolin-messaging` | transport-agnostic integration-event ports (Kafka adapter deferred) |
 
 ## Develop the framework
 
