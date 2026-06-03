@@ -56,6 +56,15 @@ monolith-vs-microservice duality, expressed through events.
    testable. No file grows into a 10k-line monolith.
 5. **Verify, never invent.** Ruby and gem versions/APIs are confirmed via context7/web research
    before being committed to design, plan, or code.
+6. **LLM-friendly by construction.** The framework is designed to be operated by AI agents, not
+   just humans. Ruthlessly predictable conventions (deterministic layout; naming derives keys,
+   stream names, table names); machine-readable contracts (`module.rb` manifest + `CONTRACT.md` +
+   `shaolin describe --json` emitting the whole app map); structured introspection and an MCP
+   server exposing describe/lint/test/graph as tools; actionable errors that state the fix; small
+   single-responsibility files that fit a context window; correct-by-construction generators;
+   explicit schemas for every command/event; and a generated `AGENTS.md`/`CLAUDE.md` so an agent
+   dropped into a repo is oriented instantly. This is not a feature — it is a cross-cutting
+   constraint on every sub-project.
 
 ## 5. Tech Stack (verified 2026-06-03)
 
@@ -223,6 +232,9 @@ everything imports it):
 8. **shaolin-cli** — generators and runners.
 9. **Production runtime & deploy** — Docker + Cloud Run/Knative/GKE artifacts.
 10. **Agent-ownership tooling** — per-module CONTRACT, isolation guarantees, lint.
+11. **LLM / agent interface** — `shaolin describe --json` (full app map), MCP server exposing
+    describe/lint/test/graph/routes as tools, `AGENTS.md`/`CLAUDE.md` generation, machine-readable
+    schemas. Cross-cuts every gem; this sub-project delivers the dedicated surfaces.
 
 ## 16. Cycle 1 scope — thin vertical slice through every layer
 
