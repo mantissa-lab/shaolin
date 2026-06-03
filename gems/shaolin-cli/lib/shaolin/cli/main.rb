@@ -59,6 +59,33 @@ module Shaolin
         say "projections rebuilt#{name ? " for #{name}" : ""}", :green
       end
 
+      desc "describe", "Print a machine-readable map of the app (modules, commands, events, imports)"
+      method_option :json, type: :boolean, default: false, desc: "emit JSON (for agents/tools)"
+      def describe
+        require_relative "describe"
+        data = Describe.map(File.join(Dir.pwd, "app/modules"))
+        if options[:json]
+          require "json"
+          puts JSON.pretty_generate(data)
+        else
+          data[:modules].each do |m|
+            say m[:name], :cyan
+            m[:commands_handled].each  { |c| say "  command: #{c}" }
+            m[:events_published].each  { |e| say "  event:   #{e}" }
+            m[:imports].each           { |i| say "  import:  #{i}" }
+            m[:exports].each           { |x| say "  export:  #{x}" }
+          end
+        end
+      end
+
+      desc "schemas", "Print each module's command/event surface"
+      method_option :json, type: :boolean, default: false
+      def schemas
+        require_relative "describe"
+        require "json"
+        puts JSON.pretty_generate(Describe.schemas(File.join(Dir.pwd, "app/modules")))
+      end
+
       desc "lint", "Check module isolation (no cross-module reach-ins) — Prism static analysis"
       def lint
         require_relative "isolation"

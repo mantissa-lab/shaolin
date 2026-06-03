@@ -6,9 +6,14 @@ module under `app/modules/<name>/` you can own and change in isolation.
 ## Conventions (deterministic — generate, don't hand-wire)
 
 ```
-bundle exec shaolin g module <plural-name>   # scaffold a full module (boots immediately)
-bundle exec shaolin server                   # serve HTTP (Falcon) on $PORT (8080)
-bundle exec shaolin console                  # IRB with the app booted
+bundle exec shaolin g module <plural-name>          # full CQRS/ES module (boots immediately)
+bundle exec shaolin g module <plural-name> --crud   # plain CRUD module (no event sourcing)
+bundle exec shaolin server                          # serve HTTP (Falcon) on $PORT (8080)
+bundle exec shaolin console                         # IRB with the app booted
+bundle exec shaolin describe --json                 # machine-readable map of all modules
+bundle exec shaolin lint                            # check module isolation (no cross-module reach-ins)
+bundle exec shaolin graph                           # module dependency graph
+bundle exec shaolin projections rebuild             # rebuild read models by replaying events
 ```
 
 A module contains: `commands/` (typed intent) · `events/` (domain events) · `<entity>.rb`
