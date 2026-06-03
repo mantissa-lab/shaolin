@@ -8,6 +8,7 @@ gem "shaolin-http", path: "gems/shaolin-http"
 gem "shaolin-server", path: "gems/shaolin-server"
 gem "shaolin-cli", path: "gems/shaolin-cli"
 gem "shaolin-messaging", path: "gems/shaolin-messaging"
+gem "shaolin-jobs", path: "gems/shaolin-jobs"
 
 group :development, :test do
   gem "rspec", "~> 3.13"

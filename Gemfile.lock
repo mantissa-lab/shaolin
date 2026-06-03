@@ -51,6 +51,14 @@ PATH
       shaolin-core
 
 PATH
+  remote: gems/shaolin-jobs
+  specs:
+    shaolin-jobs (0.1.0)
+      activerecord (~> 8.0)
+      shaolin-core
+      shaolin-cqrs
+
+PATH
   remote: gems/shaolin-messaging
   specs:
     shaolin-messaging (0.1.0)
@@ -297,6 +305,7 @@ DEPENDENCIES
   shaolin-cqrs!
   shaolin-dto!
   shaolin-http!
+  shaolin-jobs!
   shaolin-messaging!
   shaolin-server!
 
@@ -383,6 +392,7 @@ CHECKSUMS
   shaolin-cqrs (0.1.0)
   shaolin-dto (0.1.0)
   shaolin-http (0.1.0)
+  shaolin-jobs (0.1.0)
   shaolin-messaging (0.1.0)
   shaolin-server (0.1.0)
   string-format (0.2.0) sha256=bc981c14116b061f12134549f32fa2d61a17b5a35dd6fd36596c21722a789af6
