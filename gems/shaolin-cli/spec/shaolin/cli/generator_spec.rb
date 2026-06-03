@@ -65,6 +65,16 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     end
   end
 
+  it "gives modules generated in the same second distinct migration versions" do
+    Dir.mktmpdir do |root|
+      generate("posts", root)
+      generate("tags", root, crud: true)
+      versions = Dir.glob(File.join(root, "app/modules/*/db/migrate/*.rb"))
+                    .map { |f| File.basename(f)[/\A\d+/] }
+      expect(versions.uniq.size).to eq(versions.size)
+    end
+  end
+
   it "generates a --crud module (no event sourcing) that boots and serves" do
     Dir.mktmpdir do |root|
       generate("articles", root, crud: true)

@@ -69,8 +69,17 @@ module Shaolin
           template "module/request_spec.rb.erb",     "spec/requests/#{@name}_spec.rb"
         end
 
+        # A unique migration version: the current timestamp, bumped past any
+        # existing migration in the app so two modules generated in the same
+        # second don't collide (ActiveRecord requires unique versions).
         def migration_timestamp
-          @migration_timestamp ||= Time.now.strftime("%Y%m%d%H%M%S")
+          @migration_timestamp ||= begin
+            version = Time.now.strftime("%Y%m%d%H%M%S").to_i
+            existing = Dir.glob(File.join(destination_root, "app/modules/*/db/migrate/*.rb"))
+                          .map { |f| File.basename(f)[/\A\d+/].to_i }
+            version += 1 while existing.include?(version)
+            version.to_s
+          end
         end
       end
     end
