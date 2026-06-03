@@ -19,6 +19,7 @@ module Shaolin
     def boot!
       discover
       register_containers
+      expose_containers
       Provider.start_all
       wire
       self
@@ -40,6 +41,13 @@ module Shaolin
         ds = ContainerBuilder.build(name: defn.name, dir: dir)
         @containers[defn.name] = ModuleContainer.new(definition: defn, container: ds)
       end
+    end
+
+    # Expose the module containers to providers (e.g. :http enumerates
+    # controllers) via the shared kernel, before providers start.
+    def expose_containers
+      containers = @containers
+      Kernel.register("kernel.containers") { containers }
     end
 
     def wire
