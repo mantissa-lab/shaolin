@@ -1,5 +1,7 @@
 # shaolin-core Implementation Plan
 
+> **STATUS: ✅ COMPLETE (2026-06-03).** All tasks implemented TDD-first; 25 examples, 0 failures. Verified against dry-system 1.2.5 / dry-auto_inject 1.2.1 / dry-configurable 1.4.0. Merged to master.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the production `shaolin-core` gem — the kernel that discovers modules, builds a dry-system container per module, wires imports/exports, exposes a DI injector, and runs a provider-based boot lifecycle.
