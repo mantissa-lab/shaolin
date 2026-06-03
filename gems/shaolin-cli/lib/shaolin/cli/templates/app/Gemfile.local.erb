@@ -10,6 +10,9 @@ gem "shaolin-server",       path: "<%= @local_path %>/gems/shaolin-server"
 gem "shaolin-cli",          path: "<%= @local_path %>/gems/shaolin-cli"
 gem "shaolin-messaging",    path: "<%= @local_path %>/gems/shaolin-messaging"
 gem "shaolin-jobs",         path: "<%= @local_path %>/gems/shaolin-jobs"
+# Optional transports / Redis (uncomment what you need):
+# gem "shaolin-rabbitmq",   path: "<%= @local_path %>/gems/shaolin-rabbitmq"
+# gem "shaolin-redis",      path: "<%= @local_path %>/gems/shaolin-redis"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
