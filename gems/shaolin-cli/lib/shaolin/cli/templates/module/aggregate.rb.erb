@@ -1,0 +1,15 @@
+require "shaolin/cqrs"
+require_relative "events/<%= @event_us %>"
+
+module <%= @ns %>
+  # Event-sourced aggregate. State is derived by replaying events.
+  class <%= @entity %>
+    include Shaolin::CQRS::Aggregate
+
+    def create(name:)
+      apply(Events::<%= @event %>.new(data: { id: id, name: name }))
+    end
+
+    on(Events::<%= @event %>) { |_event| }
+  end
+end

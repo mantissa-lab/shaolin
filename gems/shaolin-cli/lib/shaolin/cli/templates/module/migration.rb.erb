@@ -1,0 +1,7 @@
+class Create<%= @ns %>Read < ActiveRecord::Migration[8.0]
+  def change
+    create_table(:<%= @read_table %>, id: :string) do |t|
+      t.string :name
+    end
+  end
+end

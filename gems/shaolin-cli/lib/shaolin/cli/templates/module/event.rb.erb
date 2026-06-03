@@ -1,0 +1,7 @@
+require "ruby_event_store"
+
+module <%= @ns %>
+  module Events
+    class <%= @event %> < RubyEventStore::Event; end
+  end
+end

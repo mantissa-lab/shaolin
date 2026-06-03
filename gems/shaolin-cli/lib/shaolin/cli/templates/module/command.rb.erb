@@ -1,0 +1,11 @@
+require "shaolin/dto"
+
+module <%= @ns %>
+  module Commands
+    # Trusted, typed intent (built from a validated DTO).
+    class <%= @command %> < Shaolin::ValueObject
+      attribute :id, Shaolin::Types::String
+      attribute :name, Shaolin::Types::String
+    end
+  end
+end

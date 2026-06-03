@@ -1,0 +1,21 @@
+# <%= @app %>
+
+A [shaolin](https://github.com/) CQRS/Event-Sourcing backend.
+
+## Develop
+
+```bash
+bundle install
+bundle exec shaolin g module users   # scaffold a module
+bundle exec shaolin server           # serve on http://localhost:8080
+```
+
+## Deploy (container-native, GCP-first)
+
+```bash
+docker build -t <%= @app %> .
+# HTTP service -> Cloud Run / Knative:
+kubectl apply -f deploy/service.yaml
+```
+
+See `AGENTS.md` for how the codebase is organized and how to work in it.

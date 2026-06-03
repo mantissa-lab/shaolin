@@ -5,7 +5,9 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::CLI::VERSION
   spec.summary     = "shaolin CLI: project + module generators and runners"
   spec.authors     = ["shaolin"]
-  spec.files       = Dir["lib/**/*.rb", "lib/**/*.erb"]
+  spec.files       = Dir["lib/**/*", "exe/*"].select { |f| File.file?(f) }
+  spec.bindir      = "exe"
+  spec.executables = ["shaolin"]
   spec.required_ruby_version = ">= 4.0.0"
 
   spec.add_dependency "shaolin-core"

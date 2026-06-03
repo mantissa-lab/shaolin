@@ -1,0 +1,15 @@
+require "shaolin/cqrs"
+require_relative "../events/<%= @event_us %>"
+require_relative "../read_models/<%= @entity_us %>_record"
+
+module <%= @ns %>
+  module Projections
+    class <%= @ns %>Projection < Shaolin::CQRS::Projection
+      on(Events::<%= @event %>) do |event|
+        ReadModels::<%= @entity %>Record.project(id: event.data[:id]) do |record|
+          record.name = event.data[:name]
+        end
+      end
+    end
+  end
+end

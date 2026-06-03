@@ -1,0 +1,9 @@
+require "shaolin/activerecord"
+
+module <%= @ns %>
+  module ReadModels
+    class <%= @entity %>Record < Shaolin::AR::ReadModel
+      self.table_name = "<%= @read_table %>"
+    end
+  end
+end

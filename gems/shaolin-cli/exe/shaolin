@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+require "shaolin/cli"
+require "shaolin/cli/main"
+
+Shaolin::CLI::Main.start(ARGV)
