@@ -49,6 +49,7 @@ module Shaolin
           template "crud/controller.rb.erb", "#{base}/controllers/#{@name}_controller.rb"
           template "crud/migration.rb.erb",  "#{base}/db/migrate/#{migration_timestamp}_create_#{@name}.rb"
           template "crud/CONTRACT.md.erb",   "#{base}/CONTRACT.md"
+          template "crud/request_spec.rb.erb", "spec/requests/#{@name}_spec.rb"
         end
 
         def create_cqrs_module
@@ -64,6 +65,8 @@ module Shaolin
           template "module/controller.rb.erb",       "#{base}/controllers/#{@name}_controller.rb"
           template "module/migration.rb.erb",        "#{base}/db/migrate/#{migration_timestamp}_create_#{@name}_read.rb"
           template "module/CONTRACT.md.erb",         "#{base}/CONTRACT.md"
+          template "module/aggregate_spec.rb.erb",   "spec/#{@entity_us}_spec.rb"
+          template "module/request_spec.rb.erb",     "spec/requests/#{@name}_spec.rb"
         end
 
         def migration_timestamp

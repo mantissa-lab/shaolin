@@ -1,0 +1,17 @@
+# Loads the framework + app code WITHOUT booting (no DB needed for unit specs).
+# Request specs (tagged :integration) call `boot_app!` and need a database.
+ENV["SHAOLIN_SKIP_BOOT"] ||= "1"
+
+require_relative "../config/boot"
+require "rack/test"
+require "json"
+
+# Boot the app once for request specs (idempotent across spec files).
+def boot_app!
+  $shaolin_booted ||= <%= @app_class %>.boot!
+end
+
+RSpec.configure do |config|
+  config.expect_with(:rspec) { |c| c.syntax = :expect }
+  config.disable_monkey_patching!
+end
