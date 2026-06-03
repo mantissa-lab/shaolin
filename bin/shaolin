@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Local `shaolin` launcher — use this to run `shaolin new <app>` BEFORE a project
+# exists (the gems aren't published yet, so there's no global `shaolin` binary).
+# Runs the CLI from the framework's own bundle, from whatever directory you're in.
+#
+#   /home/netsky/dev/labs/shaolin/bin/shaolin new myapp --path /home/netsky/dev/labs/shaolin
+#
+# AFTER creating the app: `cd myapp && bundle install`, then use the app's own
+# `bundle exec shaolin ...` for g module / server / lint / etc.
+set -euo pipefail
+FW="/home/netsky/dev/labs/shaolin"
+exec env RBENV_VERSION=4.0.5 BUNDLE_GEMFILE="$FW/Gemfile" bundle exec ruby "$FW/gems/shaolin-cli/exe/shaolin" "$@"
