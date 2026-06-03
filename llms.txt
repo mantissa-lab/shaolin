@@ -116,8 +116,13 @@
 - **Probes.** `GET /healthz` liveness (always 200), `GET /readyz` readiness (runs `Shaolin::Health`
   checks — the AR provider registers a DB ping, the Redis provider a PING; 503 if any is down),
   `GET /metrics` Prometheus text (`shaolin_up`, outbox queue depth by status).
-- **Custom middleware (auth / rate limit / CORS).** `Shaolin::HTTP.register_provider!(middleware: [->(app){ MyAuth.new(app) }])`
-  — runs inside the error boundary + request logger, before the router.
+- **Custom middleware (auth / rate limit / CORS).** It's plain Rack, so plug in the ecosystem via
+  `Shaolin::HTTP.register_provider!(middleware: [->(app){ Rack::Cors.new(app){ ... } }, ->(app){ Rack::Attack.new(app) }])`
+  — each builder wraps the app, runs inside the error boundary + request logger, before the router, and
+  can short-circuit (e.g. 401/429). Recommended gems: **rack-cors** (CORS), **rack-attack** (rate
+  limiting / throttling), **rack-session**, and for auth **Rack::Auth::Basic** (built in), **warden**,
+  or a **jwt** middleware. NB: **Devise is Rails-coupled** (ActionController/Warden-via-Rails) and does
+  NOT drop into a standalone Rack app — use warden/jwt directly here.
 - **Async observability.** Worker and scheduler emit structured JSON logs (reactor.done/retry/dead,
   schedule.fired/failed). A failing reactor retries/dead-letters; a failing scheduled task is isolated
   (logged, never aborts the loop or the other tasks).

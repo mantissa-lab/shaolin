@@ -20,7 +20,7 @@ RSpec.describe "shaolin-http integration" do
     Shaolin::Health.reset!
   end
 
-  def build_and_boot
+  def build_and_boot(middleware: [])
     Dir.mktmpdir do |root|
       controllers = File.join(root, "app/modules/users/controllers")
       FileUtils.mkdir_p(controllers)
@@ -51,7 +51,7 @@ RSpec.describe "shaolin-http integration" do
       RUBY
 
       Shaolin::CQRS.register_provider!
-      Shaolin::HTTP.register_provider!
+      Shaolin::HTTP.register_provider!(middleware: middleware)
       Shaolin::App.new(root: root).boot!
       yield Shaolin::Kernel["http.app"]
     end
@@ -154,6 +154,22 @@ RSpec.describe "shaolin-http integration" do
       session.get("/metrics")
       expect(session.last_response.status).to eq(200)
       expect(session.last_response.body).to include("shaolin_up 1")
+    end
+  end
+
+  it "runs a real Rack middleware from the hook (Rack::Auth::Basic)" do
+    require "rack/auth/basic"
+    auth = ->(app) { Rack::Auth::Basic.new(app, "shaolin") { |u, p| u == "admin" && p == "secret" } }
+
+    build_and_boot(middleware: [auth]) do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+
+      session.get("/users/1")
+      expect(session.last_response.status).to eq(401) # short-circuits before the router
+
+      session.basic_authorize("admin", "secret")
+      session.get("/users/1")
+      expect(session.last_response.status).to eq(200)
     end
   end
 end
