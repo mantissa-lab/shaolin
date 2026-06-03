@@ -8,6 +8,7 @@ require_relative "cqrs/query_bus"
 require_relative "cqrs/event_store"
 require_relative "cqrs/aggregate_repository"
 require_relative "cqrs/command_handler"
+require_relative "cqrs/query_handler"
 require_relative "cqrs/projection"
 
 module Shaolin

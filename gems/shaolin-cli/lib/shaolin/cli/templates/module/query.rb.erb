@@ -1,0 +1,9 @@
+require "shaolin/dto"
+
+module <%= @ns %>
+  module Queries
+    class Find<%= @entity %> < Shaolin::ValueObject
+      attribute :id, Shaolin::Types::String
+    end
+  end
+end

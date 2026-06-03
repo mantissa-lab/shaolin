@@ -61,6 +61,8 @@ module Shaolin
           template "module/command_handler.rb.erb",  "#{base}/command_handlers/#{@command_us}_handler.rb"
           template "module/read_model.rb.erb",       "#{base}/read_models/#{@entity_us}_record.rb"
           template "module/projection.rb.erb",       "#{base}/projections/#{@name}_projection.rb"
+          template "module/query.rb.erb",            "#{base}/queries/find_#{@entity_us}.rb"
+          template "module/query_handler.rb.erb",    "#{base}/query_handlers/find_#{@entity_us}_handler.rb"
           template "module/dto.rb.erb",              "#{base}/dto/#{@command_us}_dto.rb"
           template "module/controller.rb.erb",       "#{base}/controllers/#{@name}_controller.rb"
           template "module/migration.rb.erb",        "#{base}/db/migrate/#{migration_timestamp}_create_#{@name}_read.rb"
