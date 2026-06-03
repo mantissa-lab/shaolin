@@ -1,5 +1,7 @@
 # shaolin-activerecord Implementation Plan
 
+
+> **STATUS: ✅ COMPLETE (2026-06-03).** 8 examples vs live PostgreSQL 15.4; durable event store integrates with :cqrs end-to-end. Verified AR 8.1.3 / pg 1.6.3 / ruby_event_store-active_record 2.19.2. Merged to master.
 > REQUIRED SUB-SKILL: superpowers:executing-plans. TDD, small files, commit per task. Tests run against local PG (port 5433, socket /tmp, db shaolin_test). Run `cd gems/shaolin-activerecord && bundle exec rspec`.
 
 **Goal:** ActiveRecord integration — the durable event-store backend (injected into cqrs), a read-model base with idempotent projection upsert, per-module migrations, standalone connection with fiber/thread isolation, and the `:active_record` provider.
