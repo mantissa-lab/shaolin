@@ -15,6 +15,11 @@
   `orders` → namespace `Orders`, entity `Order`, command `CreateOrder`, event `OrderCreated`,
   read model table `orders_read`, event topic `orders.order_created`.
 - `shaolin server` (Falcon), `shaolin console`, `shaolin migrate`, `shaolin routes`.
+- **Agent tools:** `shaolin describe --json` (machine-readable map of all modules: commands,
+  events, imports, exports — load this to understand the whole app), `shaolin schemas`
+  (command/event surface), `shaolin lint` (isolation check — flags cross-module reach-ins),
+  `shaolin graph` (module dependency graph), `shaolin projections rebuild [name]` (replay events
+  into read models), `shaolin g module <name> --crud` (plain CRUD module, no event sourcing).
 
 ## Module anatomy (`app/modules/<name>/`)
 
