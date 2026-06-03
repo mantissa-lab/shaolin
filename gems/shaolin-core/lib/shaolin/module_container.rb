@@ -35,6 +35,10 @@ module Shaolin
 
     def exports?(key) = @definition.exports.include?(key.to_s)
 
+    # Local component keys registered in this module's container (excludes
+    # imports and kernel infra). Used by transports to enumerate e.g. controllers.
+    def keys = @container.keys
+
     private
 
     def owner_of(key) = key.split(".", 2).first
