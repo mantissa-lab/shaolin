@@ -15,9 +15,11 @@ module Shaolin
     def self.register_provider!
       Shaolin.register_provider(:cqrs) do
         start do
+          # Optional upcasting mapper (event versioning) — see EventStore.build.
+          mapper = Shaolin::Kernel.key?("cqrs.event_mapper") ? Shaolin::Kernel["cqrs.event_mapper"] : nil
           event_store =
             if Shaolin::Kernel.key?("cqrs.event_store_backend")
-              EventStore.build(repository: Shaolin::Kernel["cqrs.event_store_backend"])
+              EventStore.build(repository: Shaolin::Kernel["cqrs.event_store_backend"], mapper: mapper)
             else
               EventStore.in_memory
             end

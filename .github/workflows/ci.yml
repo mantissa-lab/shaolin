@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shaolin_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6399:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      # gem suites read these (PG over TCP on CI, not the local /tmp socket)
+      DB_HOST: localhost
+      DB_PORT: "5433"
+      DB_USER: postgres
+      PGPASSWORD: postgres
+      REDIS_TEST_URL: redis://127.0.0.1:6399/0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ".ruby-version"
+          bundler-cache: true
+
+      - name: Run each gem's suite
+        run: |
+          set -e
+          for dir in gems/shaolin-*; do
+            echo "== $dir =="
+            (cd "$dir" && bundle exec rspec)
+          done

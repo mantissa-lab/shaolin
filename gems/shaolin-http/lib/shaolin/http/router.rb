@@ -1,22 +1,39 @@
 require "hanami/router"
+require "json"
+require "shaolin/core"
 require_relative "request"
 require_relative "errors"
 require_relative "rewindable_input"
 require_relative "request_logger"
+require_relative "error_boundary"
+require_relative "metrics"
 
 module Shaolin
   module HTTP
     # Assembles one Rack app from every module's controllers. Each module
     # container's `controllers.*` components contribute their `route_set`;
     # path+verb collisions across modules fail fast at boot.
+    #
+    # Probes: GET /healthz (liveness, always 200) and /readyz (readiness — runs
+    # Shaolin::Health checks, 503 if any dependency is down). GET /metrics is a
+    # Prometheus exposition. The middleware stack (outer→inner) is:
+    #   RequestLogger → ErrorBoundary → RewindableInput → [app middleware] → router
+    # so every response is logged with a request id, every exception becomes the
+    # JSON error contract, and oversized bodies are capped. `middleware:` lets an
+    # app insert its own Rack middleware (auth, rate limiting, CORS) before the
+    # router.
     module Router
-      HEALTH = ->(_env) { [200, { "content-type" => "application/json" }, ['{"status":"ok"}']] }
+      LIVENESS = ->(_env) { [200, { "content-type" => "application/json" }, ['{"status":"ok"}']] }
 
-      def self.build(containers)
+      def self.build(containers, middleware: [])
         defs = collect_route_defs(containers)
         detect_conflicts!(defs)
-        # middleware order (outermost first): log/request-id → body cap → router
-        RequestLogger.new(RewindableInput.new(build_router(defs)))
+
+        app = build_router(defs)
+        middleware.reverse_each { |mw| app = mw.call(app) }
+        app = RewindableInput.new(app)
+        app = ErrorBoundary.new(app)
+        RequestLogger.new(app)
       end
 
       def self.collect_route_defs(containers)
@@ -45,9 +62,13 @@ module Shaolin
       end
 
       def self.build_router(defs)
-        health = HEALTH
+        liveness = LIVENESS
+        readiness = method(:readiness_response)
+        metrics = method(:metrics_response)
         Hanami::Router.new do
-          get("/healthz", to: health)
+          get("/healthz", to: liveness)
+          get("/readyz",  to: readiness)
+          get("/metrics", to: metrics)
           defs.each do |d|
             controller = d[:controller]
             action = d[:action]
@@ -55,6 +76,16 @@ module Shaolin
             public_send(d[:method], d[:path], to: endpoint)
           end
         end
+      end
+
+      def self.readiness_response(_env)
+        ok, detail = Shaolin::Health.status
+        body = JSON.generate(status: ok ? "ok" : "unavailable", checks: detail)
+        [ok ? 200 : 503, { "content-type" => "application/json" }, [body]]
+      end
+
+      def self.metrics_response(_env)
+        [200, { "content-type" => "text/plain; version=0.0.4" }, [Metrics.render]]
       end
     end
   end

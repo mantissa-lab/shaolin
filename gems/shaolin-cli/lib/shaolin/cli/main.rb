@@ -60,6 +60,14 @@ module Shaolin
         say "schema up to date", :green
       end
 
+      desc "rollback [STEPS]", "Roll back the last STEPS read-model migrations (default 1)"
+      def rollback(steps = "1")
+        boot_app!
+        require "shaolin/activerecord"
+        Shaolin::AR::Migrator.rollback(File.join(Dir.pwd, "app/modules"), Integer(steps))
+        say "rolled back #{steps} migration(s)", :green
+      end
+
       desc "worker", "Run the jobs worker — process the outbox (async reactors)"
       def worker
         boot_app!

@@ -1,14 +1,15 @@
 require "active_record"
 
-# Connection config for the local test Postgres (see project memory):
-# port 5433, unix socket in /tmp, db shaolin_test, trust auth.
+# Connection config for the test Postgres. Local default: port 5433, unix socket
+# in /tmp, db shaolin_test, trust auth (see memory). CI overrides via DB_* env.
 module PgTest
   CONFIG = {
     adapter: "postgresql",
-    database: "shaolin_test",
-    username: "postgres",
-    host: "/tmp",
-    port: 5433
+    database: ENV.fetch("DB_NAME", "shaolin_test"),
+    username: ENV.fetch("DB_USER", "postgres"),
+    password: ENV["PGPASSWORD"],
+    host: ENV.fetch("DB_HOST", "/tmp"),
+    port: Integer(ENV.fetch("DB_PORT", "5433"))
   }.freeze
 
   module_function

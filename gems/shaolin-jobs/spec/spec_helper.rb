@@ -1,3 +1,5 @@
+ENV["SHAOLIN_LOG"] ||= "off" # silence worker/scheduler structured logs in tests
+
 require "shaolin/core"
 require "shaolin/cqrs"
 require "shaolin/activerecord"

@@ -23,6 +23,7 @@ module Shaolin
           Connection.establish!(config)
           Connection.isolation_level = isolation_level
           Connection.with_advisory_lock(SCHEMA_LOCK_KEY) { EventStoreSchema.create! } if auto_schema
+          Shaolin::Health.register("database") { Connection.connected? }
           Shaolin::Kernel.register("cqrs.event_store_backend", Shaolin::AR.event_repository)
           # The transaction runner that makes the transactional outbox atomic:
           # the :cqrs provider wires it into the aggregate repository so append +

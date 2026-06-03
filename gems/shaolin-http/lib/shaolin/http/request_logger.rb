@@ -28,7 +28,10 @@ module Shaolin
 
         status, headers, body = @app.call(env)
         headers["x-request-id"] = request_id
-        log(env, status, started, request_id) if @enabled
+        # ErrorBoundary (inner) turns exceptions into responses and stashes the
+        # exception here, so a handled 500 still logs at error level with detail.
+        boundary_error = env["shaolin.error"]
+        log(env, status, started, request_id, error: boundary_error&.message) if @enabled
         [status, headers, body]
       rescue StandardError => e
         log(env, 500, started, request_id, error: e.message) if @enabled
@@ -39,9 +42,13 @@ module Shaolin
 
       def log(env, status, started, request_id, error: nil)
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round(1)
+        level = if status >= 500 then "error"
+                elsif status >= 400 then "warn"
+                else "info"
+                end
         line = {
           ts: Time.now.utc.iso8601(3),
-          level: error ? "error" : "info",
+          level: level,
           msg: "request",
           request_id: request_id,
           method: env["REQUEST_METHOD"],

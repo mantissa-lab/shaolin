@@ -26,6 +26,7 @@ module Shaolin
           Shaolin::Kernel.register("cache.store", cache)
           Shaolin::Kernel.register("redis.store", store)
           Shaolin::Kernel.register("redis.publisher", StreamPublisher.new(pool: pool, stream: stream))
+          Shaolin::Health.register("redis") { pool.with { |r| r.ping == "PONG" } }
         end
       end
     end

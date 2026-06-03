@@ -10,8 +10,16 @@ module Shaolin
         build(repository: RubyEventStore::InMemoryRepository.new)
       end
 
-      def self.build(repository:)
-        RubyEventStore::Client.new(repository: repository)
+      # `mapper:` is the extension point for event versioning / upcasting: pass a
+      # RubyEventStore::Mappers::PipelineMapper whose transformations include
+      # `Transformation::Upcast.new(...)` and old event versions are rewritten to
+      # the current shape on read. Nil uses RES's default mapper. See docs/EVENTS.md.
+      def self.build(repository:, mapper: nil)
+        if mapper
+          RubyEventStore::Client.new(repository: repository, mapper: mapper)
+        else
+          RubyEventStore::Client.new(repository: repository)
+        end
       end
     end
   end
