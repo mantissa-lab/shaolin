@@ -1,5 +1,7 @@
 # shaolin-cqrs Implementation Plan
 
+
+> **STATUS: ✅ COMPLETE (2026-06-03).** 13 cqrs examples + core extension (kernel container); 42 total green. Verified ruby_event_store/aggregate_root 2.19.2, arkency-command_bus 0.4.1. Merged to master.
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans. TDD, small files, commit per task. Run `cd gems/shaolin-cqrs && bundle exec rspec`.
 
 **Goal:** The CQRS/ES building blocks: canonical stream naming, an aggregate base, command bus, query bus, an event-store factory, and an aggregate repository — over verified ruby_event_store 2.19.2 / aggregate_root 2.19.2 / arkency-command_bus 0.4.1.

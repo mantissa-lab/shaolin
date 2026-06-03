@@ -13,3 +13,5 @@ module Shaolin
     # building blocks required above; provider wiring added in a later task
   end
 end
+
+require_relative "cqrs/provider"
