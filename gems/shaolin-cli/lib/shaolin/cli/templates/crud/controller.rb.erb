@@ -1,0 +1,29 @@
+require "shaolin/http"
+require_relative "../<%= @entity_us %>"
+require_relative "../dto/<%= @entity_us %>_dto"
+
+module <%= @ns %>
+  module Controllers
+    class <%= @ns %>Controller < Shaolin::HTTP::Controller
+      routes do
+        post "/<%= @name %>",     :create
+        get  "/<%= @name %>/:id", :show
+      end
+
+      def create(req)
+        dto = DTO::<%= @entity %>DTO.validate(req.params)
+        return unprocessable(dto.errors) if dto.failure?
+
+        record = <%= @entity %>.create!(dto.to_h)
+        created({ id: record.id }, location: "/<%= @name %>/#{record.id}")
+      end
+
+      def show(req)
+        record = <%= @entity %>.find_by(id: req[:id])
+        return not_found("<%= @entity_us %> #{req[:id]} not found") unless record
+
+        json({ id: record.id, name: record.name })
+      end
+    end
+  end
+end

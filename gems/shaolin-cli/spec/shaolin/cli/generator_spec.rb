@@ -22,8 +22,8 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     conn.tables.each { |t| conn.drop_table(t, force: :cascade) }
   end
 
-  def generate(name, root)
-    gen = described_class.new([name])
+  def generate(name, root, crud: false)
+    gen = described_class.new([name], { "crud" => crud })
     gen.destination_root = root
     gen.invoke_all
   end
@@ -60,6 +60,32 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
       session.get(location)
       expect(session.last_response.status).to eq(200)
       expect(JSON.parse(session.last_response.body)["name"]).to eq("Sprocket")
+    end
+  end
+
+  it "generates a --crud module (no event sourcing) that boots and serves" do
+    Dir.mktmpdir do |root|
+      generate("articles", root, crud: true)
+      base = File.join(root, "app/modules/articles")
+      expect(File).to exist(File.join(base, "article.rb"))
+      expect(File).to exist(File.join(base, "controllers/articles_controller.rb"))
+      expect(File).not_to exist(File.join(base, "events"))
+      expect(File).not_to exist(File.join(base, "command_handlers"))
+
+      Shaolin::AR.register_provider!(config: PG_CONFIG)
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!
+      Shaolin::App.new(root: root).boot!
+      Shaolin::AR::Migrator.run(File.join(root, "app/modules"))
+
+      session = Rack::Test::Session.new(Shaolin::Kernel["http.app"])
+      session.post("/articles", JSON.generate(name: "Hello"), "CONTENT_TYPE" => "application/json")
+      expect(session.last_response.status).to eq(201)
+
+      location = session.last_response.headers["location"]
+      session.get(location)
+      expect(session.last_response.status).to eq(200)
+      expect(JSON.parse(session.last_response.body)["name"]).to eq("Hello")
     end
   end
 end
