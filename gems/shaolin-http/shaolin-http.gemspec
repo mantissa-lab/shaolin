@@ -5,6 +5,8 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::HTTP::VERSION
   spec.summary     = "shaolin HTTP transport: controllers map requests to commands/queries"
   spec.authors     = ["shaolin"]
+  spec.license     = "MIT"
+  spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*.rb"]
   spec.required_ruby_version = ">= 4.0.0"
 

@@ -1,0 +1,53 @@
+# shaolin
+
+> A standalone modular CQRS/Event-Sourcing backend framework for Ruby (4.0+). Each entity is a
+> self-contained folder (`app/modules/<name>/`) with an enforced public contract. Commands mutate
+> event-sourced aggregates; events persist to a Postgres event store; projections build read
+> models you query. HTTP and Kafka are interchangeable transports over the same buses. Designed to
+> be operated by AI agents: deterministic conventions, generators, explicit requires, machine-
+> readable contracts.
+
+## Build an app
+
+- `shaolin new <app>`: scaffold a runnable app (Gemfile, config/boot.rb, bin/server, Dockerfile,
+  Knative deploy/service.yaml, AGENTS.md).
+- `shaolin g module <plural>`: scaffold a full module that boots immediately. Inflection:
+  `orders` → namespace `Orders`, entity `Order`, command `CreateOrder`, event `OrderCreated`,
+  read model table `orders_read`, event topic `orders.order_created`.
+- `shaolin server` (Falcon), `shaolin console`, `shaolin migrate`, `shaolin routes`.
+
+## Module anatomy (`app/modules/<name>/`)
+
+- `module.rb` — manifest: `Shaolin.module "<name>" do imports/exports/commands_handled/events_published end`. The public boundary.
+- `commands/<verb>_<entity>.rb` — `Shaolin::ValueObject` (typed intent).
+- `events/<entity>_<pasttense>.rb` — `RubyEventStore::Event` subclass (domain event).
+- `<entity>.rb` — aggregate: `include Shaolin::CQRS::Aggregate`; command methods call `apply(Event.new(data:))`; `on(Event) { |e| ... }` mutates replay state.
+- `command_handlers/<...>_handler.rb` — `< Shaolin::CQRS::CommandHandler`; `handles SomeCommand`; `def call(cmd) ... end`; use `aggregate_repository.unit_of_work(Aggregate.new(id)) { |a| a.do }`; return `Dry::Monads Success/Failure`.
+- `projections/<name>_projection.rb` — `< Shaolin::CQRS::Projection`; `on(Event) { |e| ReadModels::X.project(id: e.data[:id]) { |r| ... } }`.
+- `read_models/<entity>_record.rb` — `< Shaolin::AR::ReadModel` (ActiveRecord), `self.table_name = "<name>_read"`.
+- `queries/` — read the read models.
+- `dto/<...>_dto.rb` — `< Shaolin::DTO`; `json { required(:x).filled(:string) }`; `.validate(params)` → `success?/failure?/to_h/errors`.
+- `controllers/<name>_controller.rb` — `< Shaolin::HTTP::Controller`; `routes do post "/x", :create; get "/x/:id", :show end`; validate DTO → `command_bus.call(Command.new(...))` → `render_result(result, location:)`; reads via read models; `command_bus`/`query_bus`/`event_store` are available.
+- `db/migrate/*_create_<name>_read.rb` — read-model migration.
+- `CONTRACT.md` — generated summary; read it to understand a module without its internals.
+
+## Rules for an agent changing a module
+
+1. Stay inside one module folder. Cross-module access only via declared `imports`/`exports`.
+2. Reference sibling files with explicit `require_relative` (no autoloading).
+3. To add a field: edit the command (attribute), event (data), DTO (rule), aggregate (apply),
+   projection (write), and the read-model migration (column). Keep them consistent.
+4. Domain invariants needing history live in the aggregate; shape/format checks live in the DTO.
+5. Run `bundle exec rspec`. Verify HTTP with `shaolin server` + curl.
+
+## Result → HTTP
+
+`Success` → 200 (201 with `location:`); `Failure([:not_found,..])` → 404; `Failure([:conflict,..])`
+→ 409; validation/other → 422. Bodies: `{ "error": { "code", "message" } }`.
+
+## Reference
+
+- Working example: `examples/demo` (a `users` module). Run `ruby examples/demo/verify.rb`.
+- Design specs: `docs/superpowers/specs/`.
+- Stack: dry-system, ruby_event_store + aggregate_root, ActiveRecord (Postgres), dry-validation/
+  dry-struct, hanami-router, Falcon/Puma, Thor.

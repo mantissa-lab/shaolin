@@ -5,6 +5,8 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::CLI::VERSION
   spec.summary     = "shaolin CLI: project + module generators and runners"
   spec.authors     = ["shaolin"]
+  spec.license     = "MIT"
+  spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*", "exe/*"].select { |f| File.file?(f) }
   spec.bindir      = "exe"
   spec.executables = ["shaolin"]

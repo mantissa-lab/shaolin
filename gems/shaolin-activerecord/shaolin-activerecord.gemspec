@@ -5,6 +5,8 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::ActiveRecordIntegration::VERSION
   spec.summary     = "shaolin ActiveRecord integration: event-store backend + read models"
   spec.authors     = ["shaolin"]
+  spec.license     = "MIT"
+  spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*.rb"]
   spec.required_ruby_version = ">= 4.0.0"
 
