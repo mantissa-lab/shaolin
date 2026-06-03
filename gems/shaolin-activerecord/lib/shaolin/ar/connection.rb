@@ -7,13 +7,20 @@ module Shaolin
     # concurrency isolation level: :fiber under Falcon (async-first), :thread
     # under Puma. Config is a plain hash (adapter/database/host/...).
     module Connection
-      # Connect. `config` is a plain hash; if it omits `pool`, we default it from
-      # the DB_POOL env (else 5). The pool must be >= the number of concurrent
-      # fibers/threads that hit the DB — notably `shaolin worker --threads N`, so
-      # size it to N (+ headroom) in production.
+      # Connect. `config` is a plain hash; missing keys get production-safe
+      # defaults from ENV:
+      #   pool (DB_POOL, 5)               — must be >= concurrent fibers/threads
+      #                                     hitting the DB (e.g. worker --threads N)
+      #   checkout_timeout (5s)           — bound the wait for a free connection
+      #   reaping_frequency (60s)         — reclaim connections leaked by crashed
+      #                                     threads / dropped by a DB failover
       def self.establish!(config)
-        config = { pool: Integer(ENV.fetch("DB_POOL", "5")) }.merge(config.transform_keys(&:to_sym))
-        ::ActiveRecord::Base.establish_connection(config)
+        defaults = {
+          pool: Integer(ENV.fetch("DB_POOL", "5")),
+          checkout_timeout: Float(ENV.fetch("DB_CHECKOUT_TIMEOUT", "5")),
+          reaping_frequency: Integer(ENV.fetch("DB_REAPING_FREQUENCY", "60"))
+        }
+        ::ActiveRecord::Base.establish_connection(defaults.merge(config.transform_keys(&:to_sym)))
         self
       end
 

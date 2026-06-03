@@ -1,6 +1,7 @@
 require "active_record"
 require_relative "schedules"
 require_relative "schedule_run"
+require_relative "log"
 
 module Shaolin
   module Jobs
@@ -30,7 +31,12 @@ module Shaolin
       def run(interval: 1.0)
         install_traps
         until @stop
-          tick
+          begin
+            tick
+          rescue StandardError => e
+            # a DB blip or lock error must not kill the scheduler loop
+            Log.emit("error", "scheduler.tick_failed", error: e.message)
+          end
           sleep(interval)
         end
       end
@@ -44,9 +50,17 @@ module Shaolin
           run = ScheduleRun.find_or_initialize_by(name: entry.name)
           next unless run.last_run_at.nil? || (now - run.last_run_at) >= entry.interval
 
-          entry.block.call
+          # Record the attempt first so a failing task respects its interval
+          # (no per-tick hammering) and, crucially, one bad task is isolated —
+          # it can't abort the loop or block the others.
           run.update!(last_run_at: now)
-          fired << entry.name
+          begin
+            entry.block.call
+            fired << entry.name
+            Log.emit("info", "schedule.fired", name: entry.name)
+          rescue StandardError => e
+            Log.emit("error", "schedule.failed", name: entry.name, error: e.message)
+          end
         end
       end
 

@@ -110,8 +110,27 @@
 - **HTTP limits/observability.** Request bodies are capped (`SHAOLIN_MAX_BODY_BYTES`, default 1 MiB →
   413). Every response carries `x-request-id` (propagated from an inbound header), and one structured
   JSON access-log line is emitted per request (`SHAOLIN_LOG=off` to silence).
+- **Error boundary.** Any exception escaping a controller becomes the JSON error contract, never a raw
+  stack trace; in production the 500 message is generic. Optimistic-concurrency clashes
+  (`RubyEventStore::WrongExpectedEventVersion`) map to 409 automatically.
+- **Probes.** `GET /healthz` liveness (always 200), `GET /readyz` readiness (runs `Shaolin::Health`
+  checks — the AR provider registers a DB ping, the Redis provider a PING; 503 if any is down),
+  `GET /metrics` Prometheus text (`shaolin_up`, outbox queue depth by status).
+- **Custom middleware (auth / rate limit / CORS).** `Shaolin::HTTP.register_provider!(middleware: [->(app){ MyAuth.new(app) }])`
+  — runs inside the error boundary + request logger, before the router.
+- **Async observability.** Worker and scheduler emit structured JSON logs (reactor.done/retry/dead,
+  schedule.fired/failed). A failing reactor retries/dead-letters; a failing scheduled task is isolated
+  (logged, never aborts the loop or the other tasks).
+- **Multi-tenancy.** `Shaolin::Tenant.with(id) { ... }` / `Shaolin::Tenant.current` carry a
+  fiber/thread-scoped tenant; weave it into aggregate ids, stream prefixes, and read-model columns
+  (isolation is enforced by your code — the framework only carries the value).
+- **Event versioning.** Register an upcasting mapper as `cqrs.event_mapper` (a RES PipelineMapper with
+  `Transformation::Upcast`) — see `docs/EVENTS.md`.
 - **Operating the queue.** `shaolin jobs stats` (counts by status), `shaolin jobs dead` (inspect
-  dead-lettered), `shaolin jobs retry <id>` (re-queue after a fix).
+  dead-lettered), `shaolin jobs retry <id>` (re-queue after a fix). Migrations: `shaolin migrate`
+  (release step), `shaolin rollback [STEPS]`.
+- **DB pool resilience.** `DB_POOL`, `DB_CHECKOUT_TIMEOUT`, `DB_REAPING_FREQUENCY` tune the pool
+  (reaping reclaims connections dropped by a failover).
 
 ## Reference
 

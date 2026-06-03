@@ -17,6 +17,7 @@ RSpec.describe "shaolin-http integration" do
     Shaolin::Registry.reset!
     Shaolin::Provider.reset!
     Shaolin::Kernel.reset!
+    Shaolin::Health.reset!
   end
 
   def build_and_boot
@@ -31,6 +32,8 @@ RSpec.describe "shaolin-http integration" do
               routes do
                 get "/users/:id", :show
                 post "/users", :create
+                get "/boom", :boom
+                get "/conflict", :conflict
               end
 
               def show(req) = json({ id: req[:id] })
@@ -39,6 +42,9 @@ RSpec.describe "shaolin-http integration" do
                 command_bus.call(RegisterUser.new(name: req[:name]))
                 created({ name: req[:name] }, location: "/users/1")
               end
+
+              def boom(_req) = raise "kaboom secret stacktrace"
+              def conflict(_req) = raise RubyEventStore::WrongExpectedEventVersion, "stale"
             end
           end
         end
@@ -98,6 +104,56 @@ RSpec.describe "shaolin-http integration" do
       session.post("/users", JSON.generate(name: big), "CONTENT_TYPE" => "application/json")
       expect(session.last_response.status).to eq(413)
       expect(JSON.parse(session.last_response.body).dig("error", "code")).to eq("payload_too_large")
+    end
+  end
+
+  it "turns an unhandled exception into a 500 JSON error without leaking the message (production)" do
+    begin
+      ENV["SHAOLIN_ENV"] = "production"
+      build_and_boot do |rack_app|
+        session = Rack::Test::Session.new(rack_app)
+        session.get("/boom")
+        expect(session.last_response.status).to eq(500)
+        body = JSON.parse(session.last_response.body)
+        expect(body.dig("error", "code")).to eq("internal_error")
+        expect(body.dig("error", "message")).to eq("internal server error")
+        expect(session.last_response.body).not_to include("kaboom")
+      end
+    ensure
+      ENV.delete("SHAOLIN_ENV")
+    end
+  end
+
+  it "maps an optimistic-concurrency conflict to 409" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+      session.get("/conflict")
+      expect(session.last_response.status).to eq(409)
+      expect(JSON.parse(session.last_response.body).dig("error", "code")).to eq("conflict")
+    end
+  end
+
+  it "serves /readyz green when checks pass and 503 when a dependency is down" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+
+      Shaolin::Health.register("database") { true }
+      session.get("/readyz")
+      expect(session.last_response.status).to eq(200)
+      expect(JSON.parse(session.last_response.body)["checks"]).to eq("database" => true)
+
+      Shaolin::Health.register("database") { false }
+      session.get("/readyz")
+      expect(session.last_response.status).to eq(503)
+    end
+  end
+
+  it "exposes Prometheus metrics at /metrics" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+      session.get("/metrics")
+      expect(session.last_response.status).to eq(200)
+      expect(session.last_response.body).to include("shaolin_up 1")
     end
   end
 end

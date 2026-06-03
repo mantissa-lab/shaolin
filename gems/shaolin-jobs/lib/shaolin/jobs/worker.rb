@@ -1,6 +1,8 @@
+require "yaml"
 require "shaolin/core"
 require_relative "outbox"
 require_relative "outbox_job"
+require_relative "log"
 
 module Shaolin
   module Jobs
@@ -48,11 +50,27 @@ module Shaolin
       end
 
       def process(job, now)
-        event = @event_store.read.event(job.event_id)
+        event = load_event(job)
         Object.const_get(job.reactor).new.call(event)
         @outbox.mark_done(job)
+        Log.emit("info", "reactor.done", reactor: job.reactor, event_id: job.event_id, event_type: job.event_type)
       rescue StandardError => e
         @outbox.mark_failed(job, error: e, backoff: @backoff, max_attempts: @max_attempts, now: now)
+        dead = job.status == "dead"
+        Log.emit(dead ? "error" : "warn", dead ? "reactor.dead" : "reactor.retry",
+                 reactor: job.reactor, event_id: job.event_id, attempts: job.attempts, error: e.message)
+      end
+
+      # The real event from the store; if it has been pruned/archived, fall back
+      # to rebuilding it from the outbox row's own YAML payload (self-contained),
+      # so a job never gets stuck just because the stream was trimmed.
+      def load_event(job)
+        @event_store.read.event(job.event_id)
+      rescue StandardError => e
+        raise unless e.class.name == "RubyEventStore::EventNotFound"
+
+        data = job.payload.to_s.empty? ? {} : YAML.safe_load(job.payload, permitted_classes: [Symbol, Time, Date], aliases: true)
+        Object.const_get(job.event_type).new(event_id: job.event_id, data: data)
       end
 
       def install_traps

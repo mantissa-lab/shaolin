@@ -21,6 +21,16 @@ RSpec.describe Shaolin::Jobs::Scheduler do
     expect($sched_fired.size).to eq(1)
   end
 
+  it "isolates a failing task: it doesn't abort the tick or the other tasks" do
+    Shaolin.schedule("bad",  every: "1h") { raise "boom" }
+    Shaolin.schedule("good", every: "1h") { $sched_fired << :ran }
+
+    expect { described_class.new.tick(now: Time.now) }.not_to raise_error
+    expect($sched_fired.size).to eq(1) # "good" still fired despite "bad" raising
+    # the failing task recorded its attempt, so it respects the interval (no hammering)
+    expect(Shaolin::Jobs::ScheduleRun.find_by(name: "bad").last_run_at).not_to be_nil
+  end
+
   it "#5 two scheduler replicas fire a due task exactly once (advisory-lock leader)" do
     Shaolin.schedule("once", every: "1h") do
       $sched_fired << :ran

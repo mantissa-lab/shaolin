@@ -48,8 +48,36 @@ load/store/version dance needs care — so it is intentionally **deferred**. Whe
 repository for `SnapshotRepository.new(event_store, interval)` for that aggregate. Most aggregates
 have short streams and don't need it.
 
-## Transactional outbox (deferred)
+## Transactional outbox (implemented)
 
-shaolin currently publishes integration events synchronously after the event-store commit
-(at-least-once is not guaranteed across a process crash between commit and publish). A
-transactional outbox is a future enhancement for guaranteed delivery to Kafka/other services.
+Async side effects go through a transactional outbox (`shaolin-jobs`). A reactor's enqueue runs as a
+synchronous subscriber **inside the same DB transaction** as the event append (the aggregate
+repository wraps the unit of work in `ActiveRecord::Base.transaction`), so a crash can never leave an
+event without its job. `shaolin worker` drains the outbox with `FOR UPDATE SKIP LOCKED`, retries with
+backoff, and dead-letters. Delivery is at-least-once → reactors must be idempotent (enqueue itself is
+deduped by a unique `(reactor, event_id)`). Cross-service transports: `shaolin-rabbitmq`,
+`shaolin-redis` (Streams).
+
+## Event versioning / upcasting
+
+Prefer **additive** changes (new optional fields with defaults read in the projection/aggregate). When
+you must reshape an old event, register an upcasting mapper so old versions are rewritten to the
+current shape on read — before the cqrs provider boots:
+
+```ruby
+require "ruby_event_store"
+upcast = RubyEventStore::Mappers::Transformation::Upcast.new(
+  "Orders::Events::OrderPlaced" => ->(record) {
+    record.metadata[:schema_version] ||= 1
+    record.data[:currency] ||= "USD"           # fill a field added in v2
+    record
+  }
+)
+mapper = RubyEventStore::Mappers::PipelineMapper.new(
+  RubyEventStore::Mappers::Pipeline.new(upcast, to_domain_event: RubyEventStore::Mappers::Transformation::DomainEvent.new)
+)
+Shaolin::Kernel.register("cqrs.event_mapper", mapper)   # before Shaolin::CQRS.register_provider!
+```
+
+The event store is the source of truth; alternatively `shaolin projections rebuild` replays events
+into read models after a projection change.
