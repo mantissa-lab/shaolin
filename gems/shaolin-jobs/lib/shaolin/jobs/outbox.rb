@@ -24,9 +24,12 @@ module Shaolin
       # Lock and return up to `limit` due pending jobs. MUST be called inside a
       # transaction; the row locks are held until that transaction ends, so other
       # workers SKIP them and a crash mid-process rolls the job back to pending.
+      # Due jobs are new (`pending`) or awaiting a retry (`failed`) past run_at.
+      CLAIMABLE = %w[pending failed].freeze
+
       def claim(limit:, now: Time.now)
         OutboxJob
-          .where(status: "pending")
+          .where(status: CLAIMABLE)
           .where("run_at <= ?", now)
           .order(:run_at)
           .limit(limit)
@@ -38,14 +41,15 @@ module Shaolin
         job.update!(status: "done", last_error: nil)
       end
 
-      # Retry with backoff; after max_attempts the job is dead-lettered (kept).
+      # Retry with backoff (status `failed`, run_at in the future); after
+      # max_attempts the job is dead-lettered (`dead`, kept in the table).
       def mark_failed(job, error:, backoff: DEFAULT_BACKOFF, max_attempts: DEFAULT_BACKOFF.size, now: Time.now)
         attempts = job.attempts + 1
         if attempts >= max_attempts
           job.update!(status: "dead", attempts: attempts, last_error: error.to_s)
         else
           delay = backoff[[attempts - 1, backoff.size - 1].min]
-          job.update!(status: "pending", attempts: attempts, last_error: error.to_s, run_at: now + delay)
+          job.update!(status: "failed", attempts: attempts, last_error: error.to_s, run_at: now + delay)
         end
       end
     end
