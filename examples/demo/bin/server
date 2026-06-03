@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+require_relative "../config/boot"
+require "shaolin/server"
+
+Demo.boot!
+Shaolin::Server.run(Shaolin::Kernel["http.app"])

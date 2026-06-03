@@ -8,6 +8,13 @@ PATH
       shaolin-core
 
 PATH
+  remote: gems/shaolin-cli
+  specs:
+    shaolin-cli (0.1.0)
+      shaolin-core
+      thor (~> 1.3)
+
+PATH
   remote: gems/shaolin-core
   specs:
     shaolin-core (0.1.0)
@@ -262,6 +269,7 @@ GEM
       mapping (~> 1.0)
     securerandom (0.4.1)
     string-format (0.2.0)
+    thor (1.5.0)
     timeout (0.6.1)
     traces (0.18.2)
     tzinfo (2.0.6)
@@ -278,6 +286,7 @@ DEPENDENCIES
   rspec (~> 3.13)
   ruby_event_store-rspec
   shaolin-activerecord!
+  shaolin-cli!
   shaolin-core!
   shaolin-cqrs!
   shaolin-dto!
@@ -362,12 +371,14 @@ CHECKSUMS
   samovar (2.4.1) sha256=c3b91dd0580771e3bc600621c1111f29542529dcffafaac3b6bf068b3f309e80
   securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
   shaolin-activerecord (0.1.0)
+  shaolin-cli (0.1.0)
   shaolin-core (0.1.0)
   shaolin-cqrs (0.1.0)
   shaolin-dto (0.1.0)
   shaolin-http (0.1.0)
   shaolin-server (0.1.0)
   string-format (0.2.0) sha256=bc981c14116b061f12134549f32fa2d61a17b5a35dd6fd36596c21722a789af6
+  thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
   timeout (0.6.1) sha256=78f57368a7e7bbadec56971f78a3f5ecbcfb59b7fcbb0a3ed6ddc08a5094accb
   traces (0.18.2) sha256=80f1649cb4daace1d7174b81f3b3b7427af0b93047759ba349960cb8f315e214
   tzinfo (2.0.6) sha256=8daf828cc77bcf7d63b0e3bdb6caa47e2272dcfaf4fbfe46f8c3a9df087a829b
