@@ -33,6 +33,38 @@ RSpec.describe Shaolin::CLI::Describe do
     end
   end
 
+  it "includes each module's reactors (with subscribed events) and scheduled tasks" do
+    Dir.mktmpdir do |root|
+      modules = write_module(root, "signups", <<~RUBY)
+        Shaolin.module "signups" do
+          events_published "signups.signup_completed"
+        end
+      RUBY
+      FileUtils.mkdir_p(File.join(root, "app/modules/signups/reactors"))
+      File.write(File.join(root, "app/modules/signups/reactors/notify_reactor.rb"), <<~RUBY)
+        module Signups
+          module Reactors
+            class NotifyReactor < Shaolin::Jobs::Reactor
+              on(Signups::Events::SignupCompleted) { |e| nil }
+            end
+          end
+        end
+      RUBY
+      FileUtils.mkdir_p(File.join(root, "config"))
+      File.write(File.join(root, "config/schedule.rb"), <<~RUBY)
+        Shaolin.schedule("nightly_digest", every: "1d") { nil }
+      RUBY
+
+      result = described_class.map(modules)
+      signups = result[:modules].find { |m| m[:name] == "signups" }
+
+      expect(signups[:reactors]).to eq([
+        { class: "NotifyReactor", on: ["Signups::Events::SignupCompleted"], file: "notify_reactor.rb" }
+      ])
+      expect(result[:scheduled]).to include(name: "nightly_digest", every: "1d")
+    end
+  end
+
   it "produces a command/event surface for schemas" do
     Dir.mktmpdir do |root|
       modules = write_module(root, "orders", <<~RUBY)

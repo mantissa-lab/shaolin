@@ -1,4 +1,5 @@
 require "shaolin/core"
+require_relative "static_scan"
 
 module Shaolin
   module CLI
@@ -12,21 +13,24 @@ module Shaolin
       def map(modules_dir)
         Shaolin::Registry.reset!
         Dir.glob(File.join(modules_dir, "*", "module.rb")).sort.each { |file| require file }
+        app_root = File.expand_path("..", modules_dir) # app/modules -> app
 
         {
           ruby: RUBY_VERSION,
-          modules: Shaolin::Registry.all.map { |mod| module_map(mod) }
+          modules: Shaolin::Registry.all.map { |mod| module_map(mod, modules_dir) },
+          scheduled: StaticScan.schedules(app_root, File.join(File.expand_path("..", app_root), "config"))
         }
       end
 
-      def module_map(mod)
+      def module_map(mod, modules_dir)
         {
           name: mod.name,
           imports: mod.imports,
           exports: mod.exports,
           commands_handled: mod.commands_handled,
           events_published: mod.events_published,
-          events_subscribed: mod.subscribed_events
+          events_subscribed: mod.subscribed_events,
+          reactors: StaticScan.reactors(File.join(modules_dir, mod.name))
         }
       end
 

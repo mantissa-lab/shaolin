@@ -5,9 +5,9 @@ require_relative "messaging/reactor"
 
 module Shaolin
   # Transport-agnostic messaging ports. Domain logic and reactors depend only on
-  # these; a concrete adapter (e.g. a future shaolin-kafka via WaterDrop) binds
-  # them to a broker. In a monolith the InMemoryPublisher is enough — flipping on
-  # a broker adapter is the monolith -> microservice switch.
+  # these; a concrete adapter (shaolin-rabbitmq via bunny) binds them to a broker.
+  # In a monolith the InMemoryPublisher is enough — flipping on a broker adapter is
+  # the monolith -> microservice switch.
   module Messaging
     # The topic an integration event is published to. The event_type already
     # follows a dotted convention (e.g. "users.user_registered"), so it doubles

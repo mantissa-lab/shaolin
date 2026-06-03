@@ -3,7 +3,8 @@
 > A standalone modular CQRS/Event-Sourcing backend framework for Ruby (4.0+). Each entity is a
 > self-contained folder (`app/modules/<name>/`) with an enforced public contract. Commands mutate
 > event-sourced aggregates; events persist to a Postgres event store; projections build read
-> models you query. HTTP and Kafka are interchangeable transports over the same buses. Designed to
+> models you query. HTTP and RabbitMQ are interchangeable transports over the same buses; async
+> side effects run via a transactional outbox + worker. Designed to
 > be operated by AI agents: deterministic conventions, generators, explicit requires, machine-
 > readable contracts.
 
@@ -17,9 +18,15 @@
 - `shaolin server` (Falcon), `shaolin console`, `shaolin migrate`, `shaolin routes`.
 - **Agent tools:** `shaolin describe --json` (machine-readable map of all modules: commands,
   events, imports, exports — load this to understand the whole app), `shaolin schemas`
-  (command/event surface), `shaolin lint` (isolation check — flags cross-module reach-ins),
-  `shaolin graph` (module dependency graph), `shaolin projections rebuild [name]` (replay events
-  into read models), `shaolin g module <name> --crud` (plain CRUD module, no event sourcing).
+  (command/event surface), `shaolin lint` (isolation check — flags cross-module reach-ins, including
+  in reactors), `shaolin graph` (module dependency graph), `shaolin projections rebuild [name]`
+  (replay events into read models), `shaolin g module <name> --crud` (plain CRUD module, no event
+  sourcing), `shaolin g module <name> --reactor` (also scaffold an async reactor + spec).
+- **Async runtimes:** `shaolin worker` (process the outbox — runs reactors; `WORKER_CONCURRENCY=N`
+  threads, retries with exponential backoff, dead-letter on exhaustion, graceful SIGTERM),
+  `shaolin scheduler` (fire `Shaolin.schedule` tasks; single leader via a Postgres advisory lock).
+  `describe --json` also lists each module's `reactors` (with subscribed events) and top-level
+  `scheduled` tasks.
 
 ## Module anatomy (`app/modules/<name>/`)
 
@@ -33,6 +40,10 @@
 - `queries/` — read the read models.
 - `dto/<...>_dto.rb` — `< Shaolin::DTO`; `json { required(:x).filled(:string) }`; `.validate(params)` → `success?/failure?/to_h/errors`.
 - `controllers/<name>_controller.rb` — `< Shaolin::HTTP::Controller`; `routes do post "/x", :create; get "/x/:id", :show end`; validate DTO → `command_bus.call(Command.new(...))` → `render_result(result, location:)`; reads via read models; `command_bus`/`query_bus`/`event_store` are available.
+- `reactors/<entity>_reactor.rb` (optional) — `< Shaolin::Jobs::Reactor`; `on(Events::X) { |e| ... }`.
+  Like a projection, but the handler runs LATER in `shaolin worker` via the outbox (NOT in the
+  event's transaction). At-least-once delivery → handlers MUST be idempotent. Use for side effects:
+  send email, publish to RabbitMQ (`Shaolin::Kernel["messaging.publisher"].publish(...)`), call an API.
 - `db/migrate/*_create_<name>_read.rb` — read-model migration.
 - `CONTRACT.md` — generated summary; read it to understand a module without its internals.
 
@@ -50,9 +61,30 @@
 `Success` → 200 (201 with `location:`); `Failure([:not_found,..])` → 404; `Failure([:conflict,..])`
 → 409; validation/other → 422. Bodies: `{ "error": { "code", "message" } }`.
 
+## Async: reactors, worker, scheduler, RabbitMQ
+
+- **Reactor** = an async event handler for side effects. Scaffold with `g module <name> --reactor`
+  or add `reactors/<x>_reactor.rb` by hand. When its subscribed event is appended, the `:jobs`
+  provider inserts an outbox row **in the same transaction** as the event (transactional outbox —
+  no lost effect on a crash between commit and side effect).
+- `shaolin worker` claims due rows (`FOR UPDATE SKIP LOCKED`), loads the event, runs the reactor,
+  marks done; on error it retries with exponential backoff `[1s,10s,60s,600s,3600s]` and dead-letters
+  after exhausting attempts. At-least-once → **reactors must be idempotent**.
+- `Shaolin.schedule("name", every: "5m") { command_bus.call(...) }` (in `config/` or a module) +
+  `shaolin scheduler` fires periodic work; a Postgres advisory lock guarantees a single leader across
+  replicas.
+- **Cross-service (RabbitMQ):** a reactor publishes an `IntegrationEvent` via
+  `Shaolin::Kernel["messaging.publisher"]` (swap the in-memory publisher for
+  `Shaolin::RabbitMQ::Publisher` — same `Shaolin::Messaging::Publisher` port). Another service runs
+  `Shaolin::RabbitMQ::Consumer.connect(queue:, routing_keys:).run { |env| command_bus.call(...) }`.
+  Publishing through the outbox makes delivery reliable.
+
 ## Reference
 
 - Working example: `examples/demo` (a `users` module). Run `ruby examples/demo/verify.rb`.
+- Reactor/outbox example: `examples/reactor` — `ruby examples/reactor/verify.rb` (publish event →
+  outbox row → `worker.run_once` → reactor side effect).
 - Design specs: `docs/superpowers/specs/`.
 - Stack: dry-system, ruby_event_store + aggregate_root, ActiveRecord (Postgres), dry-validation/
-  dry-struct, hanami-router, Falcon/Puma, Thor.
+  dry-struct, hanami-router, Falcon/Puma, Thor; jobs/outbox (PG `SKIP LOCKED` + advisory locks),
+  messaging + RabbitMQ transport (bunny — pure Ruby).

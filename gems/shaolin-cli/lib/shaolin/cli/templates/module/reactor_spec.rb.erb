@@ -1,0 +1,17 @@
+require "spec_helper"
+require_relative "../../app/modules/<%= @name %>/events/<%= @event_us %>"
+require_relative "../../app/modules/<%= @name %>/reactors/<%= @entity_us %>_reactor"
+
+# Pure reactor spec — no worker, no DB. Asserts the reactor subscribes to the
+# event and runs its side effect when called. The worker delivers the event
+# here via the outbox in production.
+RSpec.describe <%= @ns %>::Reactors::<%= @entity %>Reactor do
+  it "subscribes to <%= @event %>" do
+    expect(described_class.subscribed_events).to include(<%= @ns %>::Events::<%= @event %>)
+  end
+
+  it "runs its side effect for the event without error" do
+    event = <%= @ns %>::Events::<%= @event %>.new(data: { id: "test-id" })
+    expect { described_class.new.call(event) }.not_to raise_error
+  end
+end

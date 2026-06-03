@@ -16,6 +16,8 @@ module Shaolin
         argument :name, type: :string, desc: "module name (plural, e.g. users)"
         class_option :crud, type: :boolean, default: false,
                             desc: "plain CRUD module (ActiveRecord, no event sourcing)"
+        class_option :reactor, type: :boolean, default: false,
+                            desc: "also scaffold an async Reactor (outbox side effect) + spec"
 
         def self.source_root
           File.expand_path("../templates", __dir__)
@@ -36,10 +38,21 @@ module Shaolin
         end
 
         def create_module
+          if options[:crud] && options[:reactor]
+            raise Thor::Error, "--reactor needs events; it can't combine with --crud (a CRUD module has none)"
+          end
+
           options[:crud] ? create_crud_module : create_cqrs_module
+          create_reactor if options[:reactor]
         end
 
         private
+
+        def create_reactor
+          base = "app/modules/#{@name}"
+          template "module/reactor.rb.erb",      "#{base}/reactors/#{@entity_us}_reactor.rb"
+          template "module/reactor_spec.rb.erb", "spec/reactors/#{@entity_us}_reactor_spec.rb"
+        end
 
         def create_crud_module
           base = "app/modules/#{@name}"

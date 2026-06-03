@@ -15,13 +15,14 @@ module Shaolin
         Generators::NewAppGenerator.new([app], opts).invoke_all
       end
 
-      desc "generate TYPE NAME", "Generate code (TYPE: module). --crud for a plain CRUD module"
+      desc "generate TYPE NAME", "Generate code (TYPE: module). --crud for a plain CRUD module; --reactor adds an async reactor"
       map "g" => :generate
       method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (no event sourcing)"
+      method_option :reactor, type: :boolean, default: false, desc: "also scaffold an async reactor + spec"
       def generate(type, name)
         case type
         when "module"
-          gen = Generators::ModuleGenerator.new([name], { "crud" => options[:crud] })
+          gen = Generators::ModuleGenerator.new([name], { "crud" => options[:crud], "reactor" => options[:reactor] })
           gen.destination_root = Dir.pwd
           gen.invoke_all
         else
@@ -91,7 +92,9 @@ module Shaolin
             m[:events_published].each  { |e| say "  event:   #{e}" }
             m[:imports].each           { |i| say "  import:  #{i}" }
             m[:exports].each           { |x| say "  export:  #{x}" }
+            (m[:reactors] || []).each  { |r| say "  reactor: #{r[:class]} on #{r[:on].join(', ')}" }
           end
+          (data[:scheduled] || []).each { |s| say "scheduled: #{s[:name]} every #{s[:every]}", :magenta }
         end
       end
 

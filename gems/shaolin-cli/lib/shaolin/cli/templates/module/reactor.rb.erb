@@ -1,0 +1,25 @@
+require "shaolin/jobs"
+
+module <%= @ns %>
+  module Reactors
+    # Async side effects for <%= @ns %> events: send email, publish to a broker,
+    # call an external API. Declared like a projection — `on(EventClass) { ... }` —
+    # but the handler runs LATER in `shaolin worker`, via the transactional outbox,
+    # NOT in the event's append transaction.
+    #
+    # Delivery is at-least-once, so handlers MUST be idempotent (key on event id /
+    # an external idempotency key). Reach the broker via the injected publisher;
+    # do not require another module's files.
+    class <%= @entity %>Reactor < Shaolin::Jobs::Reactor
+      on(<%= @ns %>::Events::<%= @event %>) do |event|
+        # TODO: replace with a real side effect. Example:
+        #   Shaolin::Kernel["messaging.publisher"].publish(
+        #     Shaolin::Messaging::IntegrationEvent.new(
+        #       event_type: "<%= @topic %>",
+        #       payload: { id: event.data[:id] }
+        #     )
+        #   )
+      end
+    end
+  end
+end

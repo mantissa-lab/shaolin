@@ -1,7 +1,7 @@
 module Shaolin
   module Messaging
-    # The outbound port. A concrete adapter (e.g. Kafka via WaterDrop) implements
-    # `#publish(integration_event)`.
+    # The outbound port. A concrete adapter (e.g. Shaolin::RabbitMQ::Publisher via
+    # bunny) implements `#publish(integration_event)`.
     module Publisher
       def publish(_integration_event)
         raise NotImplementedError, "#{self.class} must implement #publish"

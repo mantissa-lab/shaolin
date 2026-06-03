@@ -22,8 +22,8 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     conn.tables.each { |t| conn.drop_table(t, force: :cascade) }
   end
 
-  def generate(name, root, crud: false)
-    gen = described_class.new([name], { "crud" => crud })
+  def generate(name, root, crud: false, reactor: false)
+    gen = described_class.new([name], { "crud" => crud, "reactor" => reactor })
     gen.destination_root = root
     gen.invoke_all
   end
@@ -72,6 +72,25 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
       versions = Dir.glob(File.join(root, "app/modules/*/db/migrate/*.rb"))
                     .map { |f| File.basename(f)[/\A\d+/] }
       expect(versions.uniq.size).to eq(versions.size)
+    end
+  end
+
+  it "scaffolds a reactor + spec with --reactor" do
+    Dir.mktmpdir do |root|
+      generate("orders", root, reactor: true)
+      base = File.join(root, "app/modules/orders")
+      reactor = File.join(base, "reactors/order_reactor.rb")
+      expect(File).to exist(reactor)
+      expect(File).to exist(File.join(root, "spec/reactors/order_reactor_spec.rb"))
+      src = File.read(reactor)
+      expect(src).to include("class OrderReactor < Shaolin::Jobs::Reactor")
+      expect(src).to include("on(Orders::Events::OrderCreated)")
+    end
+  end
+
+  it "refuses --reactor together with --crud (a CRUD module has no events)" do
+    Dir.mktmpdir do |root|
+      expect { generate("notes", root, crud: true, reactor: true) }.to raise_error(Thor::Error, /reactor/)
     end
   end
 
