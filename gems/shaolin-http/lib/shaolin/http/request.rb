@@ -20,10 +20,18 @@ module Shaolin
       end
 
       def body
-        @body ||= (@env["rack.input"]&.read || "")
+        @body ||= read_body
       end
 
       private
+
+      def read_body
+        input = @env["rack.input"]
+        return "" unless input
+
+        input.rewind if input.respond_to?(:rewind)
+        input.read || ""
+      end
 
       def router_params
         (@env["router.params"] || {}).transform_keys(&:to_sym)

@@ -1,6 +1,7 @@
 require "hanami/router"
 require_relative "request"
 require_relative "errors"
+require_relative "rewindable_input"
 
 module Shaolin
   module HTTP
@@ -13,7 +14,7 @@ module Shaolin
       def self.build(containers)
         defs = collect_route_defs(containers)
         detect_conflicts!(defs)
-        build_router(defs)
+        RewindableInput.new(build_router(defs))
       end
 
       def self.collect_route_defs(containers)
