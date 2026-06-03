@@ -30,16 +30,36 @@ module Shaolin
       containers.each_value do |container|
         container.keys.grep(/\Areactors\./).each do |key|
           reactor = container[key]
-          next unless reactor.class.respond_to?(:subscribed_events)
+          klass = reactor.class
+          next unless klass.respond_to?(:subscribed_events)
 
-          events = reactor.class.subscribed_events
+          bind_topics(klass)
+
+          events = klass.subscribed_events
           next if events.empty?
 
-          reactor_name = reactor.class.name
+          reactor_name = klass.name
           enqueuer = ->(event) { outbox.enqueue(reactor: reactor_name, event: event) }
           event_store.subscribe(enqueuer, to: events)
         end
       end
+    end
+
+    # Resolve each string/topic subscription to a concrete (cross-module) event
+    # class and bind the reactor's block under it, so the enqueue callback can
+    # subscribe by class like the own-module form. Fail loud on a contract typo.
+    def self.bind_topics(klass)
+      return unless klass.respond_to?(:subscribed_topics)
+
+      klass.subscribed_topics.each { |topic| klass.bind_topic(topic, resolve_event(topic)) }
+    end
+
+    def self.resolve_event(topic)
+      name = Shaolin::Topic.event_class_name(topic)
+      Object.const_get(name)
+    rescue NameError => e
+      raise Shaolin::Error,
+            "reactor subscribes to topic #{topic.inspect}, but its event class #{name} is not defined (#{e.message})"
     end
   end
 end

@@ -67,6 +67,13 @@
   or add `reactors/<x>_reactor.rb` by hand. When its subscribed event is appended, the `:jobs`
   provider inserts an outbox row **in the same transaction** as the event (transactional outbox —
   no lost effect on a crash between commit and side effect).
+- **Reacting to ANOTHER module's event (cross-module, isolation-clean):** subscribe by the dotted
+  **topic string**, not the class — `on("orders.order_placed") { |event| ... }` — and declare it in the
+  manifest: `Shaolin.module("notifications") { imports events: ["orders.order_placed"] }`. A string is
+  not a constant, so `lint` stays clean; the `:jobs` provider resolves the topic to its event class
+  (`orders.order_placed` → `Orders::Events::OrderPlaced`) at wire time and the worker dispatches it like
+  any other event. `describe --json` shows the reactor's `topics` + the module's `events_subscribed`;
+  `graph` shows the `B -> A` edge. Own-module events still use the class form `on(EventClass)`.
 - `shaolin worker` claims due rows (`FOR UPDATE SKIP LOCKED`), loads the event, runs the reactor,
   marks done; on error it retries with exponential backoff `[1s,10s,60s,600s,3600s]` and dead-letters
   after exhausting attempts. At-least-once → **reactors must be idempotent**.
@@ -144,6 +151,8 @@
   outbox row → `worker.run_once` → reactor side effect).
 - Redis example: `examples/redis` — `ruby examples/redis/verify.rb` (cache + store + Streams broker;
   needs a local `redis-server`).
+- Cross-module reactor example: `examples/cross_module` — `ruby examples/cross_module/verify.rb`
+  (module B reacts to module A's event by topic; isolation-clean).
 - What changed recently / upgrading: `CHANGELOG.md`.
 - Design specs: `docs/superpowers/specs/`.
 - Stack: dry-system, ruby_event_store + aggregate_root, ActiveRecord (Postgres), dry-validation/

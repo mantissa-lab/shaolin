@@ -44,4 +44,44 @@ RSpec.describe Shaolin::CLI::Isolation do
       expect(described_class.new(modules).violations).to be_empty
     end
   end
+
+  it "does not flag a reactor that subscribes to another module's event by TOPIC STRING" do
+    Dir.mktmpdir do |root|
+      modules = File.join(root, "app/modules")
+      write(modules, "conversions/events/conversion_recorded.rb",
+            "module Conversions; module Events; class ConversionRecorded; end; end; end")
+      # legit: string topic, no reference to Conversions:: constant
+      write(modules, "dispatches/reactors/conversion_dispatcher.rb", <<~RUBY)
+        module Dispatches
+          module Reactors
+            class ConversionDispatcher < Shaolin::Jobs::Reactor
+              on("conversions.conversion_recorded") { |e| nil }
+            end
+          end
+        end
+      RUBY
+
+      expect(described_class.new(modules).violations).to be_empty
+    end
+  end
+
+  it "still flags a reactor that references another module's event CLASS" do
+    Dir.mktmpdir do |root|
+      modules = File.join(root, "app/modules")
+      write(modules, "conversions/events/conversion_recorded.rb",
+            "module Conversions; module Events; class ConversionRecorded; end; end; end")
+      write(modules, "dispatches/reactors/bad_dispatcher.rb", <<~RUBY)
+        module Dispatches
+          module Reactors
+            class BadDispatcher < Shaolin::Jobs::Reactor
+              on(Conversions::Events::ConversionRecorded) { |e| nil }
+            end
+          end
+        end
+      RUBY
+
+      rules = described_class.new(modules).violations.map(&:rule)
+      expect(rules).to include("cross-module-reference")
+    end
+  end
 end

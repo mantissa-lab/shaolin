@@ -48,7 +48,8 @@ module Shaolin
 
         def visit_class_node(node)
           prev = @current
-          @current = { class: const_name(node.constant_path), on: [] }
+          # `on:` = own-module event classes; `topics:` = cross-module topic strings
+          @current = { class: const_name(node.constant_path), on: [], topics: [] }
           @reactors << @current
           super
           @current = prev
@@ -57,7 +58,11 @@ module Shaolin
         def visit_call_node(node)
           if @current && node.name == :on && node.receiver.nil?
             arg = node.arguments&.arguments&.first
-            @current[:on] << const_name(arg) if arg.is_a?(Prism::ConstantReadNode) || arg.is_a?(Prism::ConstantPathNode)
+            if arg.is_a?(Prism::ConstantReadNode) || arg.is_a?(Prism::ConstantPathNode)
+              @current[:on] << const_name(arg)
+            elsif arg.is_a?(Prism::StringNode)
+              @current[:topics] << arg.unescaped
+            end
           end
           super
         end

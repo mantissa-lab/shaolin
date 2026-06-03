@@ -137,7 +137,11 @@ module Shaolin
             m[:events_published].each  { |e| say "  event:   #{e}" }
             m[:imports].each           { |i| say "  import:  #{i}" }
             m[:exports].each           { |x| say "  export:  #{x}" }
-            (m[:reactors] || []).each  { |r| say "  reactor: #{r[:class]} on #{r[:on].join(', ')}" }
+            m[:events_subscribed].each { |e| say "  subscribes: #{e} (from #{e.split('.').first})" }
+            (m[:reactors] || []).each do |r|
+              subs = (r[:on] + (r[:topics] || [])).join(", ")
+              say "  reactor: #{r[:class]} on #{subs}"
+            end
           end
           (data[:scheduled] || []).each { |s| say "scheduled: #{s[:name]} every #{s[:every]}", :magenta }
         end
@@ -175,7 +179,8 @@ module Shaolin
           say mod.name, :cyan
           mod.imports.each          { |i| say "  imports:    #{i}" }
           mod.events_published.each { |e| say "  publishes:  #{e}" }
-          mod.subscribed_events.each { |e| say "  subscribes: #{e}" }
+          # a subscribed topic is an edge to its owning module: B -> A
+          mod.subscribed_events.each { |e| say "  #{mod.name} -> #{Shaolin::Topic.module_name(e)}  (consumes #{e})" }
         end
       end
 

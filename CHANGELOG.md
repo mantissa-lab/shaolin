@@ -25,6 +25,12 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 - **Reactors**: `shaolin g module <name> --reactor` scaffolds a `Shaolin::Jobs::Reactor` (`on(Event){…}`)
   + spec. Reactors run in `shaolin worker` via the outbox (at-least-once → must be idempotent).
+- **Cross-module reactors (by topic, isolation-clean)**: a reactor in module B can react to module A's
+  event via the dotted **topic string** — `on("orders.order_placed") { |e| … }` — declared in the
+  manifest as `imports events: ["orders.order_placed"]`. No reference to A's class, so `lint` stays
+  clean; the `:jobs` provider resolves the topic to its event class at wire time, the enqueue is atomic
+  with A's event, and the worker dispatches it normally. `describe --json` shows the reactor's `topics`
+  and the module's `events_subscribed`; `graph` shows the `B -> A` edge. See `examples/cross_module`.
 - **`shaolin worker`** (retries + exponential backoff, dead-letter, `FOR UPDATE SKIP LOCKED`, graceful
   SIGTERM) and **`shaolin scheduler`** (cron via `Shaolin.schedule`, single leader via PG advisory
   lock; a failing task is isolated and never aborts the loop or the other tasks).
