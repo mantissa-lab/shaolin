@@ -4,6 +4,9 @@ require_relative "jobs/outbox_job"
 require_relative "jobs/outbox"
 require_relative "jobs/reactor"
 require_relative "jobs/worker"
+require_relative "jobs/schedules"
+require_relative "jobs/schedule_run"
+require_relative "jobs/scheduler"
 require_relative "jobs/provider"
 
 module Shaolin

@@ -58,6 +58,14 @@ module Shaolin
         Shaolin::Jobs::Worker.new(event_store: Shaolin::Kernel["cqrs.event_store"]).run(threads: threads)
       end
 
+      desc "scheduler", "Run the scheduler — fire periodic tasks (single leader via advisory lock)"
+      def scheduler
+        boot_app!
+        require "shaolin/jobs"
+        say "shaolin scheduler started", :green
+        Shaolin::Jobs::Scheduler.new.run
+      end
+
       desc "projections ACTION [NAME]", "Projection tasks. ACTION: rebuild (replay events into read models)"
       def projections(action, name = nil)
         raise Thor::Error, "unknown action #{action.inspect} (available: rebuild)" unless action == "rebuild"
