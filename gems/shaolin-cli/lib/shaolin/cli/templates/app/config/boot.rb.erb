@@ -1,0 +1,28 @@
+require "shaolin/core"
+require "shaolin/cqrs"
+require "shaolin/activerecord"
+require "shaolin/dto"
+require "shaolin/http"
+
+module <%= @app_class %>
+  ROOT = File.expand_path("..", __dir__)
+
+  DATABASE = {
+    adapter: "postgresql",
+    database: ENV.fetch("DB_NAME", "<%= @app %>_development"),
+    username: ENV.fetch("DB_USER", "postgres"),
+    host: ENV.fetch("DB_HOST", "localhost"),
+    port: Integer(ENV.fetch("DB_PORT", "5432"))
+  }.freeze
+
+  def self.boot!
+    Shaolin::AR.register_provider!(config: DATABASE)
+    Shaolin::CQRS.register_provider!
+    Shaolin::HTTP.register_provider!
+    app = Shaolin::App.new(root: ROOT).boot!
+    Shaolin::AR::Migrator.run(File.join(ROOT, "app/modules"))
+    app
+  end
+end
+
+<%= @app_class %>.boot! unless ENV["SHAOLIN_SKIP_BOOT"]

@@ -1,0 +1,23 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: <%= @app %>
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containerConcurrency: 100
+      containers:
+        - image: IMAGE_URL # set by CI (e.g. region-docker.pkg.dev/PROJECT/<%= @app %>)
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "/cloudsql/PROJECT:REGION:INSTANCE"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi

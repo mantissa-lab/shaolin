@@ -1,0 +1,11 @@
+require "shaolin/dto"
+
+module <%= @ns %>
+  module DTO
+    class <%= @command %>DTO < Shaolin::DTO
+      json do
+        required(:name).filled(:string)
+      end
+    end
+  end
+end

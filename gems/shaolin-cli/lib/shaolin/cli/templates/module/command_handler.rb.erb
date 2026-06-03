@@ -1,0 +1,21 @@
+require "shaolin/cqrs"
+require "dry/monads"
+require_relative "../<%= @entity_us %>"
+require_relative "../commands/<%= @command_us %>"
+
+module <%= @ns %>
+  module CommandHandlers
+    class <%= @command %>Handler < Shaolin::CQRS::CommandHandler
+      include Dry::Monads[:result]
+
+      handles Commands::<%= @command %>
+
+      def call(cmd)
+        aggregate_repository.unit_of_work(<%= @entity %>.new(cmd.id)) do |record|
+          record.create(name: cmd.name)
+        end
+        Success(cmd.id)
+      end
+    end
+  end
+end

@@ -1,0 +1,34 @@
+require "shaolin/http"
+require "securerandom"
+require_relative "../commands/<%= @command_us %>"
+require_relative "../read_models/<%= @entity_us %>_record"
+require_relative "../dto/<%= @command_us %>_dto"
+
+module <%= @ns %>
+  module Controllers
+    class <%= @ns %>Controller < Shaolin::HTTP::Controller
+      routes do
+        post "/<%= @name %>",     :create
+        get  "/<%= @name %>/:id", :show
+      end
+
+      # Write side: validate -> command -> (aggregate emits event -> projection).
+      def create(req)
+        dto = DTO::<%= @command %>DTO.validate(req.params)
+        return unprocessable(dto.errors) if dto.failure?
+
+        id = SecureRandom.uuid
+        result = command_bus.call(Commands::<%= @command %>.new(id: id, **dto.to_h))
+        render_result(result, location: "/<%= @name %>/#{id}")
+      end
+
+      # Read side: query the projection (read model).
+      def show(req)
+        record = ReadModels::<%= @entity %>Record.find_by(id: req[:id])
+        return not_found("<%= @entity_us %> #{req[:id]} not found") unless record
+
+        json({ id: record.id, name: record.name })
+      end
+    end
+  end
+end

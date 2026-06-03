@@ -1,0 +1,33 @@
+# <%= @app %> — agent guide
+
+This is a **shaolin** app: a modular CQRS/Event-Sourcing backend. Each entity is a self-contained
+module under `app/modules/<name>/` you can own and change in isolation.
+
+## Conventions (deterministic — generate, don't hand-wire)
+
+```
+bundle exec shaolin g module <plural-name>   # scaffold a full module (boots immediately)
+bundle exec shaolin server                   # serve HTTP (Falcon) on $PORT (8080)
+bundle exec shaolin console                  # IRB with the app booted
+```
+
+A module contains: `commands/` (typed intent) · `events/` (domain events) · `<entity>.rb`
+(event-sourced aggregate) · `command_handlers/` · `projections/` (update read models) ·
+`read_models/` (ActiveRecord) · `queries/` · `dto/` (boundary validation) · `controllers/`
+(HTTP → command/query) · `db/migrate/` · `CONTRACT.md` (the module's public boundary — read this
+first).
+
+## Flow
+
+`HTTP → DTO validate → command → aggregate emits event → event store (Postgres) → projection →
+read model → query`. Write and read are separated (CQRS); state is event-sourced.
+
+## Rules for changing a module
+
+- Stay inside one module folder; cross-module access only via declared `imports`/`exports` in
+  `module.rb`.
+- Reference sibling files with explicit `require_relative`.
+- Add fields by editing the command, event, DTO, aggregate, projection, read-model migration.
+- Run `bundle exec rspec` after changes.
+
+Read `CONTRACT.md` in any module to understand it without opening its internals.
