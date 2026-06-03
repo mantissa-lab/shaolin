@@ -3,6 +3,7 @@ require_relative "errors"
 require_relative "config"
 require_relative "registry"
 require_relative "dsl"
+require_relative "container_builder"
 
 module Shaolin
   # entrypoint; further sub-systems (container builder, injector, providers,
