@@ -4,6 +4,7 @@ require_relative "config"
 require_relative "registry"
 require_relative "dsl"
 require_relative "container_builder"
+require_relative "injector"
 
 module Shaolin
   # entrypoint; further sub-systems (container builder, injector, providers,
