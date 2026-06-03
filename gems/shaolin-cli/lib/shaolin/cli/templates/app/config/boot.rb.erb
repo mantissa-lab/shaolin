@@ -15,13 +15,25 @@ module <%= @app_class %>
     port: Integer(ENV.fetch("DB_PORT", "5432"))
   }.freeze
 
+  PRODUCTION = ENV["SHAOLIN_ENV"] == "production"
+
   def self.boot!
-    Shaolin::AR.register_provider!(config: DATABASE)
+    # In production set DB_POOL >= (web fibers / worker threads); schema is a
+    # deliberate release step (`shaolin migrate`), so auto_schema stays off and
+    # boots are cheap.
+    Shaolin::AR.register_provider!(config: DATABASE, auto_schema: !PRODUCTION)
     Shaolin::CQRS.register_provider!
     Shaolin::HTTP.register_provider!
     app = Shaolin::App.new(root: ROOT).boot!
-    Shaolin::AR::Migrator.run(File.join(ROOT, "app/modules"))
+    # Read-model migrations: automatic in dev for a zero-step start; in production
+    # run them explicitly via `shaolin migrate`, not on every pod boot.
+    migrate! unless PRODUCTION
     app
+  end
+
+  def self.migrate!
+    Shaolin::AR::EventStoreSchema.create!
+    Shaolin::AR::Migrator.run(File.join(ROOT, "app/modules"))
   end
 end
 

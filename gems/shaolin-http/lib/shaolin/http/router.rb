@@ -2,6 +2,7 @@ require "hanami/router"
 require_relative "request"
 require_relative "errors"
 require_relative "rewindable_input"
+require_relative "request_logger"
 
 module Shaolin
   module HTTP
@@ -14,7 +15,8 @@ module Shaolin
       def self.build(containers)
         defs = collect_route_defs(containers)
         detect_conflicts!(defs)
-        RewindableInput.new(build_router(defs))
+        # middleware order (outermost first): log/request-id → body cap → router
+        RequestLogger.new(RewindableInput.new(build_router(defs)))
       end
 
       def self.collect_route_defs(containers)

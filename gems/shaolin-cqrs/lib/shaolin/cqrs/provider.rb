@@ -27,7 +27,9 @@ module Shaolin
           Shaolin::Kernel.register("cqrs.event_store", event_store)
           Shaolin::Kernel.register("cqrs.command_bus", command_bus)
           Shaolin::Kernel.register("cqrs.query_bus", query_bus)
-          Shaolin::Kernel.register("cqrs.aggregate_repository", AggregateRepository.new(event_store))
+          transaction = Shaolin::Kernel.key?("cqrs.transaction") ? Shaolin::Kernel["cqrs.transaction"] : nil
+          Shaolin::Kernel.register("cqrs.aggregate_repository",
+                                   AggregateRepository.new(event_store, transaction: transaction))
 
           Shaolin::CQRS.wire_modules(command_bus, query_bus, event_store)
         end

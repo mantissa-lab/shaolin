@@ -34,6 +34,12 @@ module Shaolin
       def server
         boot_app!
         require "shaolin/server"
+        # Falcon is fiber-per-request, so AR connections must be isolated per
+        # fiber (otherwise concurrent fibers share one connection). The worker
+        # process stays thread-isolated. Set it here, matching the runtime.
+        if defined?(Shaolin::AR) && Shaolin::Server::Config.new.adapter == :falcon
+          Shaolin::AR::Connection.isolation_level = :fiber
+        end
         Shaolin::Server.run(Shaolin::Kernel["http.app"])
       end
 
@@ -44,9 +50,13 @@ module Shaolin
         IRB.start
       end
 
-      desc "migrate", "Boot the app, ensuring event store + read-model schemas"
+      desc "migrate", "Apply schema (event store + jobs) and run read-model migrations — the release step"
       def migrate
         boot_app!
+        require "shaolin/activerecord"
+        Shaolin::AR::EventStoreSchema.create!
+        Shaolin::AR::Migrator.run(File.join(Dir.pwd, "app/modules"))
+        Shaolin::Jobs::Schema.create! if defined?(Shaolin::Jobs)
         say "schema up to date", :green
       end
 
@@ -55,7 +65,11 @@ module Shaolin
         boot_app!
         require "shaolin/jobs"
         threads = Integer(ENV.fetch("WORKER_CONCURRENCY", "1"))
-        say "shaolin worker started (#{threads} thread(s))", :green
+        pool = ::ActiveRecord::Base.connection_pool.size
+        if threads > pool
+          say "warning: WORKER_CONCURRENCY=#{threads} exceeds DB pool=#{pool}; set DB_POOL>=#{threads} to avoid connection timeouts", :yellow
+        end
+        say "shaolin worker started (#{threads} thread(s), DB pool #{pool})", :green
         Shaolin::Jobs::Worker.new(event_store: Shaolin::Kernel["cqrs.event_store"]).run(threads: threads)
       end
 
@@ -65,6 +79,29 @@ module Shaolin
         require "shaolin/jobs"
         say "shaolin scheduler started", :green
         Shaolin::Jobs::Scheduler.new.run
+      end
+
+      desc "jobs [ACTION] [ID]", "Inspect the outbox — ACTION: stats (default), dead, retry ID"
+      def jobs(action = "stats", id = nil)
+        boot_app!
+        require "shaolin/jobs"
+        outbox = Shaolin::Jobs::Outbox.new
+        case action
+        when "stats"
+          counts = outbox.stats
+          %w[pending failed done dead].each { |s| say format("  %-8s %d", s, counts.fetch(s, 0)) }
+        when "dead"
+          dead = outbox.dead
+          say "no dead-lettered jobs", :green if dead.empty?
+          dead.each { |j| say "#{j.id}\t#{j.reactor}\t#{j.event_type}\t#{j.last_error}", :red }
+        when "retry"
+          raise Thor::Error, "usage: shaolin jobs retry ID" unless id
+
+          done = outbox.retry!(id).to_i.positive?
+          say(done ? "re-queued job #{id}" : "no dead job #{id}", done ? :green : :yellow)
+        else
+          raise Thor::Error, "unknown action #{action.inspect} (stats | dead | retry ID)"
+        end
       end
 
       desc "projections ACTION [NAME]", "Projection tasks. ACTION: rebuild (replay events into read models)"

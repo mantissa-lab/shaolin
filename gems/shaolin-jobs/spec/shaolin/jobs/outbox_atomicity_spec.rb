@@ -83,4 +83,33 @@ RSpec.describe "transactional outbox (acceptance #1)" do
       expect(Shaolin::Jobs::OutboxJob.count).to eq(events_before)
     end
   end
+
+  it "is atomic by DEFAULT: a failing sync subscriber rolls back the event AND the outbox (no manual transaction)" do
+    Dir.mktmpdir do |root|
+      app = build_app(root)
+      bus = app["widgets"]["cqrs.command_bus"]
+      event_store = Shaolin::Kernel["cqrs.event_store"]
+      # a synchronous subscriber that blows up mid-append (e.g. a projection bug)
+      event_store.subscribe(->(_e) { raise "sync boom" }, to: [WidgetMade])
+
+      expect { bus.call(CreateWidget.new(id: "w9", name: "Z")) }.to raise_error(/sync boom/)
+
+      # the framework wrapped the unit of work in a transaction, so NOTHING persisted
+      expect(Shaolin::Jobs::OutboxJob.count).to eq(0)
+      expect(event_store.read.of_type([WidgetMade]).to_a).to be_empty
+    end
+  end
+
+  it "enqueues idempotently: re-publishing the same event does not duplicate the outbox row" do
+    Dir.mktmpdir do |root|
+      build_app(root)
+      outbox = Shaolin::Kernel["jobs.outbox"]
+      event = WidgetMade.new(data: { id: "w1", name: "A" })
+
+      outbox.enqueue(reactor: "Widgets::Reactors::WidgetReactor", event: event)
+      outbox.enqueue(reactor: "Widgets::Reactors::WidgetReactor", event: event) # same event_id
+
+      expect(Shaolin::Jobs::OutboxJob.where(event_id: event.event_id).count).to eq(1)
+    end
+  end
 end
