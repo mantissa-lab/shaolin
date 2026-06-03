@@ -49,6 +49,16 @@ module Shaolin
         say "schema up to date", :green
       end
 
+      desc "projections ACTION [NAME]", "Projection tasks. ACTION: rebuild (replay events into read models)"
+      def projections(action, name = nil)
+        raise Thor::Error, "unknown action #{action.inspect} (available: rebuild)" unless action == "rebuild"
+
+        boot_app!
+        require "shaolin/cqrs"
+        Shaolin::CQRS::ProjectionRunner.rebuild_all(only: name)
+        say "projections rebuilt#{name ? " for #{name}" : ""}", :green
+      end
+
       desc "routes", "List modules and the commands/events they expose"
       def routes
         boot_app!

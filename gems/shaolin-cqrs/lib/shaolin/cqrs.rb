@@ -10,6 +10,7 @@ require_relative "cqrs/aggregate_repository"
 require_relative "cqrs/command_handler"
 require_relative "cqrs/query_handler"
 require_relative "cqrs/projection"
+require_relative "cqrs/projection_runner"
 
 module Shaolin
   module CQRS
