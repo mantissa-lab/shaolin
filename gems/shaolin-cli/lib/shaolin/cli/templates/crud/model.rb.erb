@@ -1,0 +1,8 @@
+require "shaolin/activerecord"
+
+module <%= @ns %>
+  # Plain ActiveRecord model — read and write in one place (no event sourcing).
+  class <%= @entity %> < Shaolin::AR::ReadModel
+    self.table_name = "<%= @table %>"
+  end
+end

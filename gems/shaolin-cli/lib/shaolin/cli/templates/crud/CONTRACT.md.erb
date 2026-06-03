@@ -1,0 +1,7 @@
+# <%= @name %> — module contract (CRUD)
+
+- **HTTP routes:** `POST /<%= @name %>`, `GET /<%= @name %>/:id`
+- **Model:** `<%= @table %>` (ActiveRecord, plain CRUD — no event sourcing)
+
+A plain CRUD module: the controller reads/writes the ActiveRecord model directly. Use the default
+(event-sourced) module type when you need history, projections, or auditability.

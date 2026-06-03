@@ -11,6 +11,8 @@ module Shaolin
         include Thor::Actions
 
         argument :name, type: :string, desc: "application name"
+        class_option :path, type: :string, default: nil,
+                            desc: "path to a local shaolin checkout (Gemfile uses path: gems)"
 
         def self.source_root
           File.expand_path("../templates/app", __dir__)
@@ -19,10 +21,11 @@ module Shaolin
         def set_variables
           @app = Naming.module_us(name)
           @app_class = Naming.namespace(name)
+          @local_path = options[:path] && File.expand_path(options[:path])
         end
 
         def create_app
-          template "Gemfile.erb",            "#{@app}/Gemfile"
+          template(@local_path ? "Gemfile.local.erb" : "Gemfile.erb", "#{@app}/Gemfile")
           template "config/boot.rb.erb",     "#{@app}/config/boot.rb"
           template "bin/server.erb",         "#{@app}/bin/server"
           template "Dockerfile.erb",         "#{@app}/Dockerfile"

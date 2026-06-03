@@ -9,16 +9,19 @@ module Shaolin
       def self.exit_on_failure? = true
 
       desc "new APP", "Scaffold a new shaolin application"
+      method_option :path, type: :string, desc: "path to a local shaolin checkout (Gemfile uses path: gems)"
       def new(app)
-        Generators::NewAppGenerator.new([app]).invoke_all
+        opts = options[:path] ? { "path" => options[:path] } : {}
+        Generators::NewAppGenerator.new([app], opts).invoke_all
       end
 
-      desc "generate TYPE NAME", "Generate code (TYPE: module)"
+      desc "generate TYPE NAME", "Generate code (TYPE: module). --crud for a plain CRUD module"
       map "g" => :generate
+      method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (no event sourcing)"
       def generate(type, name)
         case type
         when "module"
-          gen = Generators::ModuleGenerator.new([name])
+          gen = Generators::ModuleGenerator.new([name], { "crud" => options[:crud] })
           gen.destination_root = Dir.pwd
           gen.invoke_all
         else

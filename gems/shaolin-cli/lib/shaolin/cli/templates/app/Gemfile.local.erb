@@ -1,0 +1,14 @@
+source "https://rubygems.org"
+
+# shaolin framework (local path build — the gems are not published yet)
+gem "shaolin-core",         path: "<%= @local_path %>/gems/shaolin-core"
+gem "shaolin-cqrs",         path: "<%= @local_path %>/gems/shaolin-cqrs"
+gem "shaolin-activerecord", path: "<%= @local_path %>/gems/shaolin-activerecord"
+gem "shaolin-dto",          path: "<%= @local_path %>/gems/shaolin-dto"
+gem "shaolin-http",         path: "<%= @local_path %>/gems/shaolin-http"
+gem "shaolin-server",       path: "<%= @local_path %>/gems/shaolin-server"
+gem "shaolin-cli",          path: "<%= @local_path %>/gems/shaolin-cli"
+
+group :development, :test do
+  gem "rspec", "~> 3.13"
+end
