@@ -47,6 +47,10 @@ module Shaolin
         [201, headers, [JSON.generate(data)]]
       end
 
+      def no_content
+        [204, {}, []]
+      end
+
       def not_found(message = "not found")
         error_response(404, "not_found", message)
       end

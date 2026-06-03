@@ -6,12 +6,16 @@ RSpec.describe "<%= @name %> requests", :integration do
 
   let(:session) { Rack::Test::Session.new(Shaolin::Kernel["http.app"]) }
 
-  it "creates and reads a <%= @entity_us %>" do
+  it "creates, reads and lists a <%= @entity_us %> (command -> event -> projection -> query)" do
     session.post("/<%= @name %>", JSON.generate(name: "Example"), "CONTENT_TYPE" => "application/json")
     expect(session.last_response.status).to eq(201)
 
     session.get(session.last_response.headers["location"])
     expect(session.last_response.status).to eq(200)
     expect(JSON.parse(session.last_response.body)["name"]).to eq("Example")
+
+    session.get("/<%= @name %>")
+    expect(session.last_response.status).to eq(200)
+    expect(JSON.parse(session.last_response.body)).to be_an(Array)
   end
 end

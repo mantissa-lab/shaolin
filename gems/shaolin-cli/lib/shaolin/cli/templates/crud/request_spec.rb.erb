@@ -6,12 +6,31 @@ RSpec.describe "<%= @name %> requests", :integration do
 
   let(:session) { Rack::Test::Session.new(Shaolin::Kernel["http.app"]) }
 
-  it "creates and reads a <%= @entity_us %>" do
-    session.post("/<%= @name %>", JSON.generate(name: "Example"), "CONTENT_TYPE" => "application/json")
-    expect(session.last_response.status).to eq(201)
+  def json_post(path, payload)
+    session.post(path, JSON.generate(payload), "CONTENT_TYPE" => "application/json")
+  end
 
-    session.get(session.last_response.headers["location"])
+  it "creates, reads, updates, lists and deletes a <%= @entity_us %>" do
+    json_post("/<%= @name %>", { name: "Example" })
+    expect(session.last_response.status).to eq(201)
+    location = session.last_response.headers["location"]
+
+    session.get(location)
     expect(session.last_response.status).to eq(200)
     expect(JSON.parse(session.last_response.body)["name"]).to eq("Example")
+
+    session.patch(location, JSON.generate(name: "Updated"), "CONTENT_TYPE" => "application/json")
+    expect(session.last_response.status).to eq(200)
+    expect(JSON.parse(session.last_response.body)["name"]).to eq("Updated")
+
+    session.get("/<%= @name %>")
+    expect(session.last_response.status).to eq(200)
+    expect(JSON.parse(session.last_response.body)).to be_an(Array)
+
+    session.delete(location)
+    expect(session.last_response.status).to eq(204)
+
+    session.get(location)
+    expect(session.last_response.status).to eq(404)
   end
 end
