@@ -23,23 +23,34 @@ module Shaolin
             end
 
           command_bus = CommandBus.new
+          query_bus = QueryBus.new
           Shaolin::Kernel.register("cqrs.event_store", event_store)
           Shaolin::Kernel.register("cqrs.command_bus", command_bus)
-          Shaolin::Kernel.register("cqrs.query_bus", QueryBus.new)
+          Shaolin::Kernel.register("cqrs.query_bus", query_bus)
           Shaolin::Kernel.register("cqrs.aggregate_repository", AggregateRepository.new(event_store))
 
-          Shaolin::CQRS.wire_modules(command_bus, event_store)
+          Shaolin::CQRS.wire_modules(command_bus, query_bus, event_store)
         end
       end
     end
 
-    # Auto-register command handlers on the bus and subscribe projections to the
-    # event store, by enumerating each module's container components.
-    def self.wire_modules(command_bus, event_store)
+    # Auto-register command + query handlers on their buses and subscribe
+    # projections to the event store, by enumerating each module's components.
+    def self.wire_modules(command_bus, query_bus, event_store)
       containers = Shaolin::Kernel.key?("kernel.containers") ? Shaolin::Kernel["kernel.containers"] : {}
       containers.each_value do |container|
         wire_command_handlers(container, command_bus)
+        wire_query_handlers(container, query_bus)
         wire_projections(container, event_store)
+      end
+    end
+
+    def self.wire_query_handlers(container, query_bus)
+      container.keys.grep(/\Aquery_handlers\./).each do |key|
+        handler = container[key]
+        next unless handler.class.respond_to?(:handled_query) && handler.class.handled_query
+
+        query_bus.register(handler.class.handled_query, handler)
       end
     end
 

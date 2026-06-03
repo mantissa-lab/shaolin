@@ -11,6 +11,7 @@ class RegisterUser
 end
 
 class UserRegistered < RubyEventStore::Event; end
+class FindUser; end
 
 RSpec.describe "shaolin-cqrs auto-wiring" do
   before do
@@ -24,6 +25,7 @@ RSpec.describe "shaolin-cqrs auto-wiring" do
     Dir.mktmpdir do |root|
       dir = File.join(root, "app/modules/users")
       FileUtils.mkdir_p(File.join(dir, "command_handlers"))
+      FileUtils.mkdir_p(File.join(dir, "query_handlers"))
       FileUtils.mkdir_p(File.join(dir, "projections"))
 
       File.write(File.join(dir, "module.rb"), 'Shaolin.module("users") {}')
@@ -62,12 +64,24 @@ RSpec.describe "shaolin-cqrs auto-wiring" do
         end
       RUBY
 
+      File.write(File.join(dir, "query_handlers/find_user_handler.rb"), <<~RUBY)
+        module Users
+          module QueryHandlers
+            class FindUserHandler < Shaolin::CQRS::QueryHandler
+              handles FindUser
+              def call(_query) = $shaolin_wiring_seen.last
+            end
+          end
+        end
+      RUBY
+
       Shaolin::CQRS.register_provider!
       app = Shaolin::App.new(root: root).boot!
 
       app["users"]["cqrs.command_bus"].call(RegisterUser.new(id: "u1", name: "Jane"))
 
       expect($shaolin_wiring_seen).to eq([{ id: "u1", name: "Jane" }])
+      expect(app["users"]["cqrs.query_bus"].call(FindUser.new)).to eq({ id: "u1", name: "Jane" })
     end
   end
 end

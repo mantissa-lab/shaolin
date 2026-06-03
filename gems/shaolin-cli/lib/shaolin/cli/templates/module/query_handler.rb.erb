@@ -1,0 +1,13 @@
+require "shaolin/cqrs"
+
+module <%= @ns %>
+  module QueryHandlers
+    class Find<%= @entity %>Handler < Shaolin::CQRS::QueryHandler
+      handles Queries::Find<%= @entity %>
+
+      def call(query)
+        ReadModels::<%= @entity %>Record.find_by(id: query.id)
+      end
+    end
+  end
+end
