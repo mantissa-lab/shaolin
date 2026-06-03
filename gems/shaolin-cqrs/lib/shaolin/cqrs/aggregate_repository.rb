@@ -6,6 +6,9 @@ module Shaolin
     # Loads and stores event-sourced aggregates, deriving the stream name from
     # the aggregate's class + id (so callers never build stream names by hand).
     # Wraps AggregateRoot::Repository (transactional, optimistic concurrency).
+    #
+    # Snapshots (for very large/long-lived aggregates) are available via
+    # aggregate_root's SnapshotRepository but not wired here yet — see docs/EVENTS.md.
     class AggregateRepository
       def initialize(event_store)
         @repository = AggregateRoot::Repository.new(event_store)
