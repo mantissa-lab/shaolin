@@ -10,6 +10,9 @@ gem "shaolin-server"
 gem "shaolin-cli"
 gem "shaolin-messaging"
 gem "shaolin-jobs"
+# Optional transports / Redis (uncomment what you need):
+# gem "shaolin-rabbitmq"   # RabbitMQ broker (needs a broker)
+# gem "shaolin-redis"      # Redis cache, store, and Streams/Pub-Sub broker (needs redis-server)
 
 group :development, :test do
   gem "rspec", "~> 3.13"
