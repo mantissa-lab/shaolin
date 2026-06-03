@@ -3,6 +3,7 @@ require_relative "jobs/schema"
 require_relative "jobs/outbox_job"
 require_relative "jobs/outbox"
 require_relative "jobs/reactor"
+require_relative "jobs/worker"
 require_relative "jobs/provider"
 
 module Shaolin

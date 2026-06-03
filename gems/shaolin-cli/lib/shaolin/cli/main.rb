@@ -49,6 +49,15 @@ module Shaolin
         say "schema up to date", :green
       end
 
+      desc "worker", "Run the jobs worker — process the outbox (async reactors)"
+      def worker
+        boot_app!
+        require "shaolin/jobs"
+        threads = Integer(ENV.fetch("WORKER_CONCURRENCY", "1"))
+        say "shaolin worker started (#{threads} thread(s))", :green
+        Shaolin::Jobs::Worker.new(event_store: Shaolin::Kernel["cqrs.event_store"]).run(threads: threads)
+      end
+
       desc "projections ACTION [NAME]", "Projection tasks. ACTION: rebuild (replay events into read models)"
       def projections(action, name = nil)
         raise Thor::Error, "unknown action #{action.inspect} (available: rebuild)" unless action == "rebuild"
