@@ -1,0 +1,17 @@
+require "spec_helper"
+
+# Request spec — boots the app and hits HTTP. Needs a database (tagged :integration).
+RSpec.describe "<%= @name %> requests", :integration do
+  before(:all) { boot_app! }
+
+  let(:session) { Rack::Test::Session.new(Shaolin::Kernel["http.app"]) }
+
+  it "creates and reads a <%= @entity_us %>" do
+    session.post("/<%= @name %>", JSON.generate(name: "Example"), "CONTENT_TYPE" => "application/json")
+    expect(session.last_response.status).to eq(201)
+
+    session.get(session.last_response.headers["location"])
+    expect(session.last_response.status).to eq(200)
+    expect(JSON.parse(session.last_response.body)["name"]).to eq("Example")
+  end
+end

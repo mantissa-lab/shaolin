@@ -34,6 +34,8 @@ module Shaolin
           template "deploy/service.yaml.erb", "#{@app}/deploy/service.yaml"
           template "env.example",            "#{@app}/.env.example"
           copy_file "dockerignore",          "#{@app}/.dockerignore"
+          copy_file "rspec",                 "#{@app}/.rspec"
+          template "spec/spec_helper.rb.erb", "#{@app}/spec/spec_helper.rb"
           create_file "#{@app}/.ruby-version", "4.0.5\n"
           create_file "#{@app}/app/modules/.keep", ""
           chmod "#{@app}/bin/server", 0o755

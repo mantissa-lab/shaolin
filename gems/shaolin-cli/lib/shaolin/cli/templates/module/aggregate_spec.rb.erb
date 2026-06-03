@@ -1,0 +1,13 @@
+require "spec_helper"
+require_relative "../app/modules/<%= @name %>/<%= @entity_us %>"
+
+# Pure aggregate spec — no database needed.
+RSpec.describe <%= @ns %>::<%= @entity %> do
+  it "records <%= @event %> when created" do
+    record = described_class.new("test-id")
+    record.create(name: "Example")
+
+    types = record.unpublished_events.to_a.map(&:event_type)
+    expect(types).to include("<%= @ns %>::Events::<%= @event %>")
+  end
+end

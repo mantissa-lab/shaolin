@@ -39,6 +39,8 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
         controllers/widgets_controller.rb CONTRACT.md
       ].each { |f| expect(File).to exist(File.join(base, f)), "missing #{f}" }
       expect(Dir.glob(File.join(base, "db/migrate/*_create_widgets_read.rb"))).not_to be_empty
+      expect(File).to exist(File.join(root, "spec/widget_spec.rb"))
+      expect(File).to exist(File.join(root, "spec/requests/widgets_spec.rb"))
     end
   end
 
