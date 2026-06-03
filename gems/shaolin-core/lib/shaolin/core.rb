@@ -1,5 +1,6 @@
 require_relative "core/version"
 require_relative "errors"
+require_relative "kernel"
 require_relative "config"
 require_relative "registry"
 require_relative "dsl"

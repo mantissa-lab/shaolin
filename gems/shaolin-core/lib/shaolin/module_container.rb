@@ -1,4 +1,5 @@
 require_relative "errors"
+require_relative "kernel"
 
 module Shaolin
   # A facade over a module's dry-system container that enforces the isolation
@@ -22,13 +23,14 @@ module Shaolin
       key = key.to_s
       return @container[key] if @container.key?(key)
       return @imports[key].call if @imports.key?(key)
+      return Kernel[key] if Kernel.key?(key)
 
       raise IsolationError.new(consumer: @definition.name, key: key, owner: owner_of(key))
     end
 
     def key?(key)
       key = key.to_s
-      @container.key?(key) || @imports.key?(key)
+      @container.key?(key) || @imports.key?(key) || Kernel.key?(key)
     end
 
     def exports?(key) = @definition.exports.include?(key.to_s)
