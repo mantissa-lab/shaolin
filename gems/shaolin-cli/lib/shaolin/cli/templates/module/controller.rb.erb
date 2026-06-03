@@ -8,8 +8,14 @@ module <%= @ns %>
   module Controllers
     class <%= @ns %>Controller < Shaolin::HTTP::Controller
       routes do
+        get  "/<%= @name %>",     :index
         post "/<%= @name %>",     :create
         get  "/<%= @name %>/:id", :show
+      end
+
+      # Read side: list the projection (read model).
+      def index(_req)
+        json(ReadModels::<%= @entity %>Record.order(:id).map { |r| { id: r.id, name: r.name } })
       end
 
       # Write side: validate -> command -> (aggregate emits event -> projection).

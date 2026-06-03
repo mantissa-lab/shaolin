@@ -6,8 +6,15 @@ module <%= @ns %>
   module Controllers
     class <%= @ns %>Controller < Shaolin::HTTP::Controller
       routes do
-        post "/<%= @name %>",     :create
-        get  "/<%= @name %>/:id", :show
+        get    "/<%= @name %>",      :index
+        post   "/<%= @name %>",      :create
+        get    "/<%= @name %>/:id",  :show
+        patch  "/<%= @name %>/:id",  :update
+        delete "/<%= @name %>/:id",  :destroy
+      end
+
+      def index(_req)
+        json(<%= @entity %>.order(:id).map { |record| serialize(record) })
       end
 
       def create(req)
@@ -15,14 +22,37 @@ module <%= @ns %>
         return unprocessable(dto.errors) if dto.failure?
 
         record = <%= @entity %>.create!(dto.to_h)
-        created({ id: record.id }, location: "/<%= @name %>/#{record.id}")
+        created(serialize(record), location: "/<%= @name %>/#{record.id}")
       end
 
       def show(req)
         record = <%= @entity %>.find_by(id: req[:id])
+        record ? json(serialize(record)) : not_found("<%= @entity_us %> #{req[:id]} not found")
+      end
+
+      def update(req)
+        record = <%= @entity %>.find_by(id: req[:id])
         return not_found("<%= @entity_us %> #{req[:id]} not found") unless record
 
-        json({ id: record.id, name: record.name })
+        dto = DTO::<%= @entity %>DTO.validate(req.params)
+        return unprocessable(dto.errors) if dto.failure?
+
+        record.update!(dto.to_h)
+        json(serialize(record))
+      end
+
+      def destroy(req)
+        record = <%= @entity %>.find_by(id: req[:id])
+        return not_found("<%= @entity_us %> #{req[:id]} not found") unless record
+
+        record.destroy
+        no_content
+      end
+
+      private
+
+      def serialize(record)
+        { id: record.id, name: record.name }
       end
     end
   end
