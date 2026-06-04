@@ -111,6 +111,17 @@
 - **Connection pool.** Set `DB_POOL` >= concurrent fibers/threads. `shaolin worker --threads N` needs
   `DB_POOL>=N` (it warns otherwise). Falcon is fiber-per-request → `shaolin server` sets `:fiber`
   isolation automatically; the worker stays `:thread`.
+- **Worker batching.** `WORKER_BATCH` (default 20) bounds jobs per drain. `WORKER_TX_PER_JOB=1` commits
+  each job in its OWN transaction — use it for **IO-bound reactors** (outbound HTTP) so a slow call
+  holds a row lock for just that one job. Default (batch in one transaction) suits fast CPU-bound work.
+- **Middleware → controller channel.** Auth/middleware sets `Shaolin::Context[:project_id] = …`; the
+  action reads `Shaolin::Context[:project_id]` (or the raw `request.env`). Context is fiber/thread-local,
+  cleared per request, and auto-merged into logs. `Shaolin::Tenant` is the specialized tenant case.
+- **Deterministic ids.** `Shaolin::Id.deterministic(*business_keys)` → a stable v5-style UUID for
+  idempotent ingest (same keys → same aggregate/stream id); `Shaolin::Id.generate` for new entities.
+- **Test isolation.** `Shaolin::Testing.install(rspec_config, only: :integration)` truncates read
+  models + event store + outbox before each integration example (wired into the generated spec_helper);
+  `Shaolin::Testing.clean!` to call directly.
 - **Migrations are a release step.** With `SHAOLIN_ENV=production`, boot does NOT auto-create schema or
   migrate; run `shaolin migrate` once per release (event-store + jobs schema + read-model migrations,
   advisory-locked so concurrent replicas don't race). In dev it's automatic.

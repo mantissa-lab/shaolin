@@ -6,31 +6,33 @@ require_relative "log"
 
 module Shaolin
   module Jobs
-    # Drains the outbox: claims due jobs (FOR UPDATE SKIP LOCKED, locks held for
-    # the whole batch transaction so other replicas skip them and a crash rolls
-    # jobs back), reads the event, runs the reactor, and marks done/failed.
-    # Failures retry with backoff; exhausted ones are dead-lettered.
+    # Drains the outbox: claims due jobs (FOR UPDATE SKIP LOCKED), reads the event,
+    # runs the reactor, marks done/failed. Failures retry with backoff; exhausted
+    # ones are dead-lettered.
+    #
+    # Two transaction modes (the trade-off matters for IO-bound reactors):
+    # - default (batch in ONE transaction): row locks + the transaction are held
+    #   for the whole batch. Fine for fast CPU-bound reactors; fewer round-trips.
+    # - tx_per_job: each job is claimed + processed + committed in its OWN short
+    #   transaction, so a slow outbound call (HTTP to Meta CAPI, etc.) holds a lock
+    #   for just that one job and commits independently. Use this for IO-bound
+    #   reactors. Tune `batch` (WORKER_BATCH) to bound how many jobs one run_once
+    #   drains.
     class Worker
-      def initialize(event_store:, outbox: Outbox.new, batch: 20,
+      def initialize(event_store:, outbox: Outbox.new, batch: 20, tx_per_job: false,
                      backoff: Outbox::DEFAULT_BACKOFF, max_attempts: Outbox::DEFAULT_BACKOFF.size)
         @event_store = event_store
         @outbox = outbox
         @batch = batch
+        @tx_per_job = tx_per_job
         @backoff = backoff
         @max_attempts = max_attempts
         @stop = false
       end
 
-      # Process one batch in a single transaction. Returns the count processed.
+      # Drain up to `batch` due jobs. Returns the count processed.
       def run_once(now: Time.now)
-        processed = 0
-        OutboxJob.transaction do
-          @outbox.claim(limit: @batch, now: now).each do |job|
-            process(job, now)
-            processed += 1
-          end
-        end
-        processed
+        @tx_per_job ? drain_per_job(now) : drain_batch(now)
       end
 
       # Long-running loop with N threads + graceful SIGTERM/INT stop.
@@ -42,6 +44,36 @@ module Shaolin
       def stop! = (@stop = true)
 
       private
+
+      # Whole batch in one transaction (locks held across the batch).
+      def drain_batch(now)
+        processed = 0
+        OutboxJob.transaction do
+          @outbox.claim(limit: @batch, now: now).each do |job|
+            process(job, now)
+            processed += 1
+          end
+        end
+        processed
+      end
+
+      # Each job in its own short transaction; the lock is held only for that job.
+      def drain_per_job(now)
+        processed = 0
+        while processed < @batch
+          claimed = OutboxJob.transaction do
+            job = @outbox.claim(limit: 1, now: now).first
+            next false unless job
+
+            process(job, now)
+            true
+          end
+          break unless claimed
+
+          processed += 1
+        end
+        processed
+      end
 
       def drain(poll_interval)
         until @stop

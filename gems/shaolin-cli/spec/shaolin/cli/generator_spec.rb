@@ -48,6 +48,24 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     end
   end
 
+  it "boots + migrates a module whose name camelizes to an acronym (api_keys -> APIKeys)" do
+    Dir.mktmpdir do |root|
+      generate("api_keys", root)
+
+      # the migration class must match AR's filename->constant rule, not the
+      # dry-inflector namespace (which would be CreateAPIKeysRead -> NameError)
+      migration = Dir.glob(File.join(root, "app/modules/api_keys/db/migrate/*.rb")).first
+      expect(File.read(migration)).to include("class CreateApiKeysRead")
+
+      Shaolin::AR.register_provider!(config: PG_CONFIG)
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!
+      Shaolin::App.new(root: root).boot!
+      expect { Shaolin::AR::Migrator.run(File.join(root, "app/modules")) }.not_to raise_error
+      expect(ActiveRecord::Base.connection.table_exists?("api_keys_read")).to be(true)
+    end
+  end
+
   it "generates a module that boots and serves the full CQRS/ES flow" do
     Dir.mktmpdir do |root|
       generate("widgets", root)

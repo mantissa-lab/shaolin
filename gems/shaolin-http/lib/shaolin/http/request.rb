@@ -9,6 +9,11 @@ module Shaolin
         @env = env
       end
 
+      # Read-only access to the raw Rack env — e.g. to read a value a middleware
+      # wrote (`request.env["myapp.identity"]`). For a typed cross-cutting channel
+      # prefer Shaolin::Context (set in middleware, read in the action).
+      attr_reader :env
+
       def params
         @params ||= router_params.merge(body_params)
       end

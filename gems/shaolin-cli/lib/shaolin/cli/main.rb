@@ -73,12 +73,17 @@ module Shaolin
         boot_app!
         require "shaolin/jobs"
         threads = Integer(ENV.fetch("WORKER_CONCURRENCY", "1"))
+        batch = Integer(ENV.fetch("WORKER_BATCH", "20"))
+        tx_per_job = %w[1 true].include?(ENV["WORKER_TX_PER_JOB"])
         pool = ::ActiveRecord::Base.connection_pool.size
         if threads > pool
           say "warning: WORKER_CONCURRENCY=#{threads} exceeds DB pool=#{pool}; set DB_POOL>=#{threads} to avoid connection timeouts", :yellow
         end
-        say "shaolin worker started (#{threads} thread(s), DB pool #{pool})", :green
-        Shaolin::Jobs::Worker.new(event_store: Shaolin::Kernel["cqrs.event_store"]).run(threads: threads)
+        mode = tx_per_job ? "tx-per-job (IO-bound)" : "batch-tx"
+        say "shaolin worker started (#{threads} thread(s), batch #{batch}, #{mode}, DB pool #{pool})", :green
+        Shaolin::Jobs::Worker.new(
+          event_store: Shaolin::Kernel["cqrs.event_store"], batch: batch, tx_per_job: tx_per_job
+        ).run(threads: threads)
       end
 
       desc "scheduler", "Run the scheduler — fire periodic tasks (single leader via advisory lock)"

@@ -75,6 +75,24 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   Runs inside the error boundary + request logger, before the router; can short-circuit (401/429).
   **Devise is Rails-coupled and does NOT work standalone — use warden or jwt.**
 
+### Fixes & DX (from downstream-agent feedback)
+
+- **BUG fixed — migration class name on acronym namespaces.** `g module api_keys` generated
+  `class CreateAPIKeysRead` (dry-inflector namespace `APIKeys`) but ActiveRecord's MigrationContext
+  looks up `CreateApiKeysRead` (ActiveSupport camelize of the filename) → boot crashed with NameError.
+  The generator now names the migration class to match AR's filename→constant rule; module namespaces
+  stay acronym-cased (`APIKeys`) for zeitwerk.
+- **Worker batching configurable.** `WORKER_BATCH` (default 20) bounds jobs per drain; new
+  `WORKER_TX_PER_JOB=1` (Worker `tx_per_job:`) commits each job in its own short transaction — for
+  IO-bound reactors (outbound HTTP) a slow call now holds a row lock for just that job, not the batch.
+- **`Shaolin::Context`** — the blessed middleware→controller channel: a fiber/thread-local request bag
+  (`Shaolin::Context[:project_id] = …` in middleware → read in the action), cleared per request and
+  auto-merged into logs. `request.env` is also exposed read-only.
+- **`Shaolin::Testing`** — DB isolation for specs: `install(config, only: :integration)` truncates read
+  models + event store + outbox before each integration example (wired into the generated spec_helper).
+- **`Shaolin::Id.deterministic(*keys)`** — stable v5-style UUID from business keys for idempotent
+  ingest; `Shaolin::Id.generate` for random ids.
+
 ### Logging (`Shaolin::Log`)
 
 - **Unified structured logger** that everything routes through (HTTP access line, worker, scheduler,
