@@ -59,6 +59,12 @@ PATH
       shaolin-cqrs
 
 PATH
+  remote: gems/shaolin-llm
+  specs:
+    shaolin-llm (0.1.0)
+      shaolin-core
+
+PATH
   remote: gems/shaolin-messaging
   specs:
     shaolin-messaging (0.1.0)
@@ -334,6 +340,7 @@ DEPENDENCIES
   shaolin-dto!
   shaolin-http!
   shaolin-jobs!
+  shaolin-llm!
   shaolin-messaging!
   shaolin-rabbitmq!
   shaolin-redis!
@@ -428,6 +435,7 @@ CHECKSUMS
   shaolin-dto (0.1.0)
   shaolin-http (0.1.0)
   shaolin-jobs (0.1.0)
+  shaolin-llm (0.1.0)
   shaolin-messaging (0.1.0)
   shaolin-rabbitmq (0.1.0)
   shaolin-redis (0.1.0)
