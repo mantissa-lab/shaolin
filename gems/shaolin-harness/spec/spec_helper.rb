@@ -4,6 +4,7 @@ ENV["SHAOLIN_LOG"] ||= "off"
 require "shaolin/core"
 require "shaolin/cqrs"
 require "shaolin/activerecord"
+require "shaolin/jobs"
 require "shaolin/llm"
 require "shaolin/harness"
 

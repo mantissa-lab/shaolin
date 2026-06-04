@@ -7,6 +7,7 @@
 require "shaolin/core"
 require "shaolin/cqrs"
 require "shaolin/activerecord"
+require "shaolin/jobs"
 require "shaolin/llm"
 require "shaolin/harness"
 
@@ -51,7 +52,9 @@ llm = Shaolin::LLM::InMemory.new(
 
 Shaolin::AR.register_provider!(config: DB)
 Shaolin::CQRS.register_provider!
+Shaolin::Jobs.register_provider!
 Shaolin::LLM.register_provider!(client: llm)
+Shaolin::Harness.register_durable_provider! # subscribe GateEntered -> outbox (worker drive)
 Shaolin::Provider.start_all
 
 bus = Shaolin::Kernel["cqrs.command_bus"]
@@ -91,4 +94,25 @@ done = r2.load(id)
 puts "  resumed: status=#{done.status}, output=#{done.output.inspect}, total llm calls=#{llm2.calls.size}"
 raise "resume failed" unless done.completed? && llm2.calls.size == 2 # classify not redone
 
-puts "\n✅ shaolin harness OK — event-sourced gates, tool=command, sync + durable resume (deterministic, no network)"
+puts "\n== WORKER-DRIVEN (the outbox loop — what `shaolin worker` does) =="
+llm3 = Shaolin::LLM::InMemory.new(
+  Shaolin::LLM::Completion.new(tool_calls: [{ name: "lookup", arguments: { id: "cust-99" } }]),
+  Shaolin::LLM::Completion.new(text: "Worker-driven answer.")
+)
+Shaolin::Kernel.register("llm.client", llm3)
+Shaolin::Jobs::OutboxJob.delete_all # clear the no-op jobs the sync/resume runs enqueued, for a clean count
+driver = Shaolin::Harness::Runner.new(harness: SupportTriage, llm: llm3, repo: Shaolin::Kernel["cqrs.aggregate_repository"], command_bus: bus)
+wid = driver.start(input: { text: "drive me" }) # entry GateEntered -> 1 outbox job
+worker = Shaolin::Jobs::Worker.new(event_store: Shaolin::Kernel["cqrs.event_store"])
+steps = 0
+until driver.load(wid).terminal?
+  worker.run_once # each gate's DriveReactor advance enqueues the next gate
+  steps += 1
+  break if steps > 20
+end
+wrun = driver.load(wid)
+puts "  worker steps: #{steps}, status: #{wrun.status}, output: #{wrun.output.inspect}"
+puts "  outbox jobs done: #{Shaolin::Jobs::OutboxJob.where(status: 'done').count}"
+raise "worker drive failed" unless wrun.completed? && wrun.output[:answer] == "Worker-driven answer."
+
+puts "\n✅ shaolin harness OK — event-sourced gates, tool=command; sync + durable resume + worker-driven outbox loop (deterministic, no network)"

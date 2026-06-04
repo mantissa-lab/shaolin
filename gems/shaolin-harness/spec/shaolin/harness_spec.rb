@@ -95,6 +95,39 @@ RSpec.describe Shaolin::Harness do
     expect(llm.calls.size).to eq(2) # classify once + respond once — classify NOT redone
   end
 
+  it "#2(outbox) the worker drives the run gate-by-gate via the transactional outbox" do
+    Shaolin::Provider.reset!
+    Shaolin::Kernel.reset!
+    PgTest.reset_schema!
+    Shaolin::AR.register_provider!(config: PgTest::CONFIG)
+    Shaolin::CQRS.register_provider!
+    Shaolin::Jobs.register_provider!
+    Shaolin::LLM.register_provider!(client: llm)
+    Shaolin::Harness.register_durable_provider!
+    Shaolin::Provider.start_all
+    Shaolin::Kernel["cqrs.command_bus"].register(LookupAccount, ->(cmd) { "balance:#{cmd.id}" })
+
+    runner = Shaolin::Harness::Runner.new(
+      harness: TriageHarness, llm: Shaolin::Kernel["llm.client"],
+      repo: Shaolin::Kernel["cqrs.aggregate_repository"], command_bus: Shaolin::Kernel["cqrs.command_bus"]
+    )
+    id = runner.start(input: { text: "help" }) # entry GateEntered -> 1 pending outbox job
+
+    expect(Shaolin::Jobs::OutboxJob.where(status: "pending").count).to eq(1)
+
+    worker = Shaolin::Jobs::Worker.new(event_store: Shaolin::Kernel["cqrs.event_store"])
+    20.times do
+      break if runner.load(id).terminal?
+
+      worker.run_once # one gate per run_once; each advance enqueues the next gate
+    end
+
+    run = runner.load(id)
+    expect(run.completed?).to be(true)
+    expect(run.output[:answer]).to eq("Here is your balance.")
+    expect(Shaolin::Jobs::OutboxJob.where(status: "done").count).to eq(2) # classify + respond
+  end
+
   it "#6 replay is deterministic: reconstructing the run yields the same state" do
     runner = boot!
     id = Shaolin::Id.generate

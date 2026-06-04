@@ -18,7 +18,7 @@ module Shaolin
       end
 
       def enter(gate)
-        apply(Events::GateEntered.new(data: { gate: gate.to_s }))
+        apply(Events::GateEntered.new(data: { run_id: id, gate: gate.to_s }))
       end
 
       def prompted(gate, prompt)

@@ -172,8 +172,11 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   **Tools are commands on the command bus.** Each step (prompt/response/tool/transition) is a domain
   event on the run's stream. Drive with `Shaolin::Harness::Runner`: `run_to_completion(input:)` (sync)
   or `start` + `advance(id)` per gate (durable; a fresh Runner resumes from the event stream — IO is
-  outside the per-step transaction, at-least-once → keep tools idempotent). `Harness.describe` →
-  gate/tool/model map. Test with `Shaolin::LLM::InMemory` for deterministic replay (no network).
+  outside the per-step transaction, at-least-once → keep tools idempotent). For a **worker-driven**
+  loop, `Shaolin::Harness.register_durable_provider!` + run `shaolin worker` (`WORKER_TX_PER_JOB=1`):
+  each `GateEntered` enqueues a DriveReactor advance, which enqueues the next gate — the run advances
+  across worker ticks, crash-resumable. `Harness.describe` → gate/tool/model map. Test with
+  `Shaolin::LLM::InMemory` for deterministic replay (no network).
 
 ## Reference
 

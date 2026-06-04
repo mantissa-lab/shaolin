@@ -12,5 +12,6 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "shaolin-core"
   spec.add_dependency "shaolin-cqrs"
+  spec.add_dependency "shaolin-jobs"
   spec.add_dependency "shaolin-llm"
 end
