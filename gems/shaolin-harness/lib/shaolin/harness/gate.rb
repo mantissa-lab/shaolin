@@ -2,16 +2,20 @@ module Shaolin
   class Harness
     # One gate (state) of a harness: how to build its prompt, which tools (mapped
     # to commands) it may call, and what to do with the model's result.
-    Gate = Struct.new(:name, :entry, :terminal, :prompt, :tools, :on_result, keyword_init: true) do
+    # `transitions` are the DECLARED possible next gates (`to:`), used only for
+    # describe/graph — the runtime transition is still whatever `on_result` calls.
+    Gate = Struct.new(:name, :entry, :terminal, :prompt, :tools, :on_result, :transitions, keyword_init: true) do
       def tool_names = (tools || {}).keys
+      def transition_names = (transitions || []).map(&:to_s)
     end
 
     # Block DSL collected inside `gate :name do ... end`.
     class GateBuilder
-      def initialize(name, entry, terminal)
+      def initialize(name, entry, terminal, transitions = [])
         @name = name.to_s
         @entry = entry
         @terminal = terminal
+        @transitions = transitions
         @prompt = nil
         @tools = {}
         @on_result = nil
@@ -35,7 +39,7 @@ module Shaolin
 
       def build
         Gate.new(name: @name, entry: @entry, terminal: @terminal,
-                 prompt: @prompt, tools: @tools, on_result: @on_result)
+                 prompt: @prompt, tools: @tools, on_result: @on_result, transitions: @transitions)
       end
     end
   end

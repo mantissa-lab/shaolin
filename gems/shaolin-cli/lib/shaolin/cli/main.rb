@@ -149,6 +149,14 @@ module Shaolin
             end
           end
           (data[:scheduled] || []).each { |s| say "scheduled: #{s[:name]} every #{s[:every]}", :magenta }
+          (data[:harnesses] || []).each do |h|
+            say "harness: #{h[:name]} (llm #{h[:model]})", :magenta
+            h[:gates].each do |g|
+              flags = [("entry" if g[:entry]), ("terminal" if g[:terminal])].compact.join(",")
+              edges = (g[:to] || []).empty? ? "" : " -> #{g[:to].join(', ')}"
+              say "  gate: #{g[:name]}#{" [#{flags}]" unless flags.empty?} tools=#{g[:tools]}#{edges}"
+            end
+          end
         end
       end
 
@@ -186,6 +194,15 @@ module Shaolin
           mod.events_published.each { |e| say "  publishes:  #{e}" }
           # a subscribed topic is an edge to its owning module: B -> A
           mod.subscribed_events.each { |e| say "  #{mod.name} -> #{Shaolin::Topic.module_name(e)}  (consumes #{e})" }
+        end
+
+        require_relative "describe"
+        Describe.harnesses(File.join(Dir.pwd, "app")).each do |h|
+          say "harness #{h[:name]}", :magenta
+          h[:gates].each do |g|
+            (g[:to] || []).each { |to| say "  #{g[:name]} -> #{to}" }
+            say "  #{g[:name]} (terminal)" if g[:terminal] && (g[:to] || []).empty?
+          end
         end
       end
 

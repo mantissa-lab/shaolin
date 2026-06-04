@@ -11,7 +11,7 @@ class TriageHarness < Shaolin::Harness
   harness_name "triage"
   llm model: "stub"
 
-  gate :classify, entry: true do
+  gate :classify, entry: true, to: %i[respond reject] do
     prompt { |run| "Classify: #{run.input[:text]}" }
     tools lookup: LookupAccount
     on_result { |out, run| run.transition_to(out.tool_used?(:lookup) ? :respond : :reject) }
@@ -59,7 +59,7 @@ RSpec.describe Shaolin::Harness do
       expect(map[:name]).to eq("triage")
       expect(map[:model]).to eq("stub")
       classify = map[:gates].find { |g| g[:name] == "classify" }
-      expect(classify).to include(entry: true, terminal: false, tools: ["lookup"])
+      expect(classify).to include(entry: true, terminal: false, tools: ["lookup"], to: %w[respond reject])
     end
   end
 
