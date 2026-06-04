@@ -28,6 +28,10 @@ module Shaolin
         rescue StandardError => e
           log(env, 500, started, error: e.message)
           raise
+        ensure
+          # values set by app middleware (auth identity, project_id, ...) must not
+          # leak to the next request on a reused fiber/thread
+          Shaolin::Context.clear
         end
       end
 

@@ -157,6 +157,39 @@ RSpec.describe "shaolin-http integration" do
     end
   end
 
+  it "passes a request-scoped value from middleware to the controller via Shaolin::Context" do
+    # middleware resolves an identity and stashes it; the action reads it back
+    identity = ->(app) { ->(env) { Shaolin::Context[:project_id] = env["HTTP_X_PROJECT"]; app.call(env) } }
+
+    Dir.mktmpdir do |root|
+      controllers = File.join(root, "app/modules/things/controllers")
+      FileUtils.mkdir_p(controllers)
+      File.write(File.join(root, "app/modules/things/module.rb"), 'Shaolin.module("things") {}')
+      File.write(File.join(controllers, "things_controller.rb"), <<~RUBY)
+        module Things
+          module Controllers
+            class ThingsController < Shaolin::HTTP::Controller
+              routes { get "/whoami", :whoami }
+              def whoami(_req) = json({ project_id: Shaolin::Context[:project_id] })
+            end
+          end
+        end
+      RUBY
+
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!(middleware: [identity])
+      Shaolin::App.new(root: root).boot!
+      session = Rack::Test::Session.new(Shaolin::Kernel["http.app"])
+
+      session.get("/whoami", {}, "HTTP_X_PROJECT" => "acme")
+      expect(JSON.parse(session.last_response.body)).to eq("project_id" => "acme")
+
+      # cleared between requests — no leak when the header is absent
+      session.get("/whoami")
+      expect(JSON.parse(session.last_response.body)).to eq("project_id" => nil)
+    end
+  end
+
   it "runs a real Rack middleware from the hook (Rack::Auth::Basic)" do
     require "rack/auth/basic"
     auth = ->(app) { Rack::Auth::Basic.new(app, "shaolin") { |u, p| u == "admin" && p == "secret" } }

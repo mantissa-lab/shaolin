@@ -1,4 +1,4 @@
-class Create<%= @ns %> < ActiveRecord::Migration[8.0]
+class <%= @crud_migration_class %> < ActiveRecord::Migration[8.0]
   def change
     create_table(:<%= @table %>) do |t|
       t.string :name

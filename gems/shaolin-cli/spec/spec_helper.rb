@@ -1,3 +1,5 @@
+ENV["SHAOLIN_LOG"] ||= "off" # silence structured logs in tests
+
 require "shaolin/cli"
 
 RSpec.configure do |config|

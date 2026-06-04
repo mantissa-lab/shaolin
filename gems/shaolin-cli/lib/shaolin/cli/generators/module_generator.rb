@@ -35,6 +35,9 @@ module Shaolin
           @topic      = Naming.topic(name)
           @read_table = Naming.read_table(name)
           @table      = @name
+          # Migration class names must match ActiveRecord's filename->constant rule.
+          @migration_class      = Naming.migration_class("create_#{@name}_read")
+          @crud_migration_class = Naming.migration_class("create_#{@name}")
         end
 
         def create_module

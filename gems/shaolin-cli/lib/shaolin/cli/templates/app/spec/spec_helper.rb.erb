@@ -11,7 +11,15 @@ def boot_app!
   $shaolin_booted ||= <%= @app_class %>.boot!
 end
 
+require "shaolin/activerecord"
+
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = :expect }
   config.disable_monkey_patching!
+
+  # Boot the app for integration examples, then isolate the DB between them:
+  # truncate read models, the event store, and the jobs outbox so rows (and stale
+  # pending jobs) never bleed across examples.
+  config.before(:each, :integration) { boot_app! }
+  Shaolin::Testing.install(config, only: :integration)
 end

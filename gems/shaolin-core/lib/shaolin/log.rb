@@ -64,6 +64,7 @@ module Shaolin
 
         record = { ts: Time.now.utc.iso8601(3), level: level.to_s, msg: msg.to_s }
         record[:tenant] = Shaolin::Tenant.current if defined?(Shaolin::Tenant) && Shaolin::Tenant.current
+        record.merge!(Shaolin::Context.to_h) if defined?(Shaolin::Context)
         record.merge!(context).merge!(fields)
         sinks.each { |sink| sink.call(record) }
       end

@@ -115,4 +115,21 @@ RSpec.describe Shaolin::Jobs::Worker do
       expect(Shaolin::Jobs::OutboxJob.where(status: "done").count).to eq(6)
     end
   end
+
+  it "tx_per_job mode commits each job independently and respects the batch bound" do
+    Dir.mktmpdir do |root|
+      app = boot(root)
+      bus = app["things"]["cqrs.command_bus"]
+      5.times { |i| bus.call(CreateThing.new(id: "p#{i}")) }
+
+      worker = described_class.new(event_store: Shaolin::Kernel["cqrs.event_store"], batch: 2, tx_per_job: true)
+      expect(worker.run_once).to eq(2)                                   # bounded by batch
+      expect(Shaolin::Jobs::OutboxJob.where(status: "done").count).to eq(2)
+      expect(Shaolin::Jobs::OutboxJob.where(status: "pending").count).to eq(3)
+
+      worker.run_once
+      worker.run_once
+      expect(Shaolin::Jobs::OutboxJob.where(status: "done").count).to eq(5) # rest drained
+    end
+  end
 end

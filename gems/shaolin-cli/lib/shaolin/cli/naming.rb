@@ -19,6 +19,13 @@ module Shaolin
       def event(name)      = "#{entity(name)}Created"    # -> "UserCreated"
       def event_us(name)   = INFLECTOR.underscore(event(name)) # -> "user_created"
       def topic(name)      = "#{module_us(name)}.#{event_us(name)}" # -> "users.user_created"
+
+      # The migration class name MUST match what ActiveRecord's MigrationContext
+      # derives from the filename (ActiveSupport camelize, NO acronyms) — not the
+      # dry-inflector namespace, which uppercases acronyms (api_keys -> APIKeys)
+      # and would yield CreateAPIKeysRead while AR looks for CreateApiKeysRead.
+      # Plain segment-capitalize matches AR's default for snake_case stems.
+      def migration_class(stem) = stem.split("_").map(&:capitalize).join
     end
   end
 end
