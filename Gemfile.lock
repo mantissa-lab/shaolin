@@ -48,6 +48,7 @@ PATH
     shaolin-harness (0.1.0)
       shaolin-core
       shaolin-cqrs
+      shaolin-jobs
       shaolin-llm
 
 PATH
