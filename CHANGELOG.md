@@ -9,6 +9,24 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### LLM harness (`shaolin-llm` + `shaolin-harness`)
+
+- **`shaolin-llm`** — provider-agnostic chat-completion port (`Shaolin::LLM::Client#complete`) with
+  `InMemory` (scripted, records calls — deterministic tests, no network) and `OpenAI` (stdlib Net::HTTP,
+  key only from `ENV["OPENAI_API_KEY"]`, injectable transport; live tests opt-in via `RUN_LIVE`). The
+  `:llm` provider registers `llm.client`. (Realtime/audio is a separate, later port.)
+- **`shaolin-harness`** — build LLM harnesses as **event-sourced gate state machines**. A
+  `Shaolin::Harness` subclass declares `gate`s (entry/terminal) with a `prompt`, allowed `tools` (mapped
+  to **commands on the command bus**), and an `on_result` that transitions/completes. Every step
+  (prompt, response, tool call, transition) is a domain event → full audit, crash-resume, deterministic
+  replay with the InMemory LLM.
+  - Two runtimes: **sync** (`run_to_completion`) and **durable** (`start` + `advance` per gate — each
+    advance is one atomic step with LLM/tool IO outside the transaction, so a fresh Runner resumes a
+    run purely from its event stream).
+  - `Harness.describe` → machine-readable gate/tool/model map. Example: `examples/harness/verify.rb`.
+  - Fast-follow: worker-driven durable auto-loop (advance per GateEntered), describe/graph CLI for
+    harnesses, OpenAI Realtime (audio).
+
 ### Reliability (changes guarantees — read first)
 
 - **Transactional outbox is atomic by default.** A command's unit of work now runs in a single DB

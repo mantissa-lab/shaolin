@@ -43,6 +43,14 @@ PATH
       shaolin-core
 
 PATH
+  remote: gems/shaolin-harness
+  specs:
+    shaolin-harness (0.1.0)
+      shaolin-core
+      shaolin-cqrs
+      shaolin-llm
+
+PATH
   remote: gems/shaolin-http
   specs:
     shaolin-http (0.1.0)
@@ -57,6 +65,12 @@ PATH
       activerecord (~> 8.0)
       shaolin-core
       shaolin-cqrs
+
+PATH
+  remote: gems/shaolin-llm
+  specs:
+    shaolin-llm (0.1.0)
+      shaolin-core
 
 PATH
   remote: gems/shaolin-messaging
@@ -332,8 +346,10 @@ DEPENDENCIES
   shaolin-core!
   shaolin-cqrs!
   shaolin-dto!
+  shaolin-harness!
   shaolin-http!
   shaolin-jobs!
+  shaolin-llm!
   shaolin-messaging!
   shaolin-rabbitmq!
   shaolin-redis!
@@ -426,8 +442,10 @@ CHECKSUMS
   shaolin-core (0.1.0)
   shaolin-cqrs (0.1.0)
   shaolin-dto (0.1.0)
+  shaolin-harness (0.1.0)
   shaolin-http (0.1.0)
   shaolin-jobs (0.1.0)
+  shaolin-llm (0.1.0)
   shaolin-messaging (0.1.0)
   shaolin-rabbitmq (0.1.0)
   shaolin-redis (0.1.0)
