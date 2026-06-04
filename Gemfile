@@ -12,6 +12,7 @@ gem "shaolin-jobs", path: "gems/shaolin-jobs"
 gem "shaolin-rabbitmq", path: "gems/shaolin-rabbitmq"
 gem "shaolin-redis", path: "gems/shaolin-redis"
 gem "shaolin-llm", path: "gems/shaolin-llm"
+gem "shaolin-harness", path: "gems/shaolin-harness"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
