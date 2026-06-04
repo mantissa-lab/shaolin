@@ -28,9 +28,12 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
     enqueues the next gate's job (the loop self-perpetuates, crash-resumable). The `DriveReactor` is
     idempotent under at-least-once (skips a stale/duplicate GateEntered and terminal runs). Run the
     worker with `WORKER_TX_PER_JOB=1` (each gate's LLM call is IO-bound).
-  - `Harness.describe` → machine-readable gate/tool/model map. Example: `examples/harness/verify.rb`
+  - `Harness.describe` → machine-readable gate/tool/model map. Gates take an optional `to:` (declared
+    next gates, for visualization — runtime transitions are still whatever `on_result` calls).
+    `shaolin describe --json` lists harnesses (from `app/harnesses/**` and `app/modules/*/harnesses/**`)
+    with gates/tools/model/edges; `shaolin graph` draws the gate graph. Example: `examples/harness/verify.rb`
     (sync + resume + worker-driven, all on the InMemory stub).
-  - Fast-follow: describe/graph CLI integration for harnesses, OpenAI Realtime (audio).
+  - Fast-follow: OpenAI Realtime (audio).
 
 ### Reliability (changes guarantees — read first)
 

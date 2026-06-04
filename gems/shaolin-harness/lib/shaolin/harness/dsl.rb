@@ -31,8 +31,10 @@ module Shaolin
 
       def model = @llm_model
 
-      def gate(name, entry: false, terminal: false, &block)
-        builder = GateBuilder.new(name, entry, terminal)
+      # `to:` (optional) declares the possible next gates for describe/graph; the
+      # actual transition is whatever the gate's on_result calls at runtime.
+      def gate(name, entry: false, terminal: false, to: [], &block)
+        builder = GateBuilder.new(name, entry, terminal, Array(to).map(&:to_s))
         builder.instance_eval(&block)
         gates[name.to_s] = builder.build
       end
@@ -47,7 +49,8 @@ module Shaolin
           name: harness_name,
           model: model,
           gates: gates.values.map do |g|
-            { name: g.name, entry: g.entry, terminal: g.terminal, tools: g.tool_names.map(&:to_s) }
+            { name: g.name, entry: g.entry, terminal: g.terminal,
+              tools: g.tool_names.map(&:to_s), to: g.transition_names }
           end
         }
       end

@@ -18,8 +18,25 @@ module Shaolin
         {
           ruby: RUBY_VERSION,
           modules: Shaolin::Registry.all.map { |mod| module_map(mod, modules_dir) },
-          scheduled: StaticScan.schedules(app_root, File.join(File.expand_path("..", app_root), "config"))
+          scheduled: StaticScan.schedules(app_root, File.join(File.expand_path("..", app_root), "config")),
+          harnesses: harnesses(app_root)
         }
+      end
+
+      # Load harness definitions (app/harnesses/** and app/modules/*/harnesses/**)
+      # and return their gate/tool/model maps. Loads the classes (no DB/boot); a
+      # file that can't load is skipped. Empty list if shaolin-harness isn't used.
+      def harnesses(app_root)
+        files = Dir.glob(File.join(app_root, "harnesses", "**", "*.rb")) +
+                Dir.glob(File.join(app_root, "modules", "*", "harnesses", "**", "*.rb"))
+        return [] if files.empty?
+
+        require "shaolin/harness"
+        Shaolin::Harness::Registry.reset!
+        files.sort.each { |f| require f rescue nil }
+        Shaolin::Harness::Registry.all.map(&:describe)
+      rescue LoadError
+        [] # shaolin-harness not installed
       end
 
       def module_map(mod, modules_dir)

@@ -92,6 +92,41 @@ RSpec.describe Shaolin::CLI::Describe do
     end
   end
 
+  it "discovers harnesses under app/harnesses and maps their gates/tools/model/edges" do
+    Dir.mktmpdir do |root|
+      modules = File.join(root, "app/modules")
+      FileUtils.mkdir_p(modules) # map globs module.rb here (none needed)
+      FileUtils.mkdir_p(File.join(root, "app/harnesses"))
+      File.write(File.join(root, "app/harnesses/billing_triage.rb"), <<~RUBY)
+        require "shaolin/harness"
+        class ChargeCard
+          def initialize(**) = nil
+        end
+        class BillingTriage < Shaolin::Harness
+          harness_name "billing_triage"
+          llm model: "gpt-4.1"
+          gate :classify, entry: true, to: %i[charge done] do
+            tools charge: ChargeCard
+            on_result { |_o, _r| }
+          end
+          gate :charge, to: %i[done] do
+            on_result { |_o, _r| }
+          end
+          gate :done, terminal: true do
+            on_result { |_o, _r| }
+          end
+        end
+      RUBY
+
+      result = described_class.map(modules)
+      harness = result[:harnesses].find { |h| h[:name] == "billing_triage" }
+      expect(harness[:model]).to eq("gpt-4.1")
+      classify = harness[:gates].find { |g| g[:name] == "classify" }
+      expect(classify).to include(entry: true, tools: ["charge"], to: %w[charge done])
+      expect(harness[:gates].find { |g| g[:name] == "done" }[:terminal]).to be(true)
+    end
+  end
+
   it "produces a command/event surface for schemas" do
     Dir.mktmpdir do |root|
       modules = write_module(root, "orders", <<~RUBY)
