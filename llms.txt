@@ -179,6 +179,12 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   visualization). Harnesses live in `app/harnesses/**`; `shaolin describe --json` lists them
   (gates/tools/model/edges) and `shaolin graph` draws the gate graph. Test with `Shaolin::LLM::InMemory`
   for deterministic replay (no network).
+- **Realtime/audio (provider-agnostic)**: `Shaolin::LLM::Realtime` — normalized session events
+  (`session_started`/`transcript_delta`/`audio_delta`/`tool_call`/`turn_completed`/...), `Audio` (PCM16/
+  base64/framing), a `Session`/`Client` port (`send_audio`/`send_text`/`commit`/`tool_result`/`close` +
+  `on_event`). `InMemory` adapter builds/tests voice+tool flows with no provider; `OpenAI` adapter maps
+  the Realtime WebSocket both ways (inject a WS transport for live). Same substrate for any provider.
+  Example: `examples/realtime`.
 
 ## Reference
 

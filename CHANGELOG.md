@@ -14,7 +14,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 - **`shaolin-llm`** — provider-agnostic chat-completion port (`Shaolin::LLM::Client#complete`) with
   `InMemory` (scripted, records calls — deterministic tests, no network) and `OpenAI` (stdlib Net::HTTP,
   key only from `ENV["OPENAI_API_KEY"]`, injectable transport; live tests opt-in via `RUN_LIVE`). The
-  `:llm` provider registers `llm.client`. (Realtime/audio is a separate, later port.)
+  `:llm` provider registers `llm.client`.
+- **Realtime/audio substrate** (`Shaolin::LLM::Realtime`) — provider-agnostic, so you can build realtime
+  on ANY backend (not just OpenAI): normalized session `Event`s (`session_started`/`transcript_delta`/
+  `audio_delta`/`tool_call`/`turn_completed`/`error`/`session_closed`), `Audio` helpers (PCM16/base64,
+  framing), a `Session`/`Client` port (`send_audio`/`send_text`/`commit`/`tool_result`/`close` +
+  `on_event`), an `InMemory` adapter (scriptable — build & test voice/tool flows with no provider/network),
+  and an `OpenAI` adapter mapping the Realtime WebSocket wire events both ways via an injectable transport
+  (unit-tested without a network; bring a WebSocket gem for the live socket). Example: `examples/realtime`.
 - **`shaolin-harness`** — build LLM harnesses as **event-sourced gate state machines**. A
   `Shaolin::Harness` subclass declares `gate`s (entry/terminal) with a `prompt`, allowed `tools` (mapped
   to **commands on the command bus**), and an `on_result` that transitions/completes. Every step
@@ -33,7 +40,6 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
     `shaolin describe --json` lists harnesses (from `app/harnesses/**` and `app/modules/*/harnesses/**`)
     with gates/tools/model/edges; `shaolin graph` draws the gate graph. Example: `examples/harness/verify.rb`
     (sync + resume + worker-driven, all on the InMemory stub).
-  - Fast-follow: OpenAI Realtime (audio).
 
 ### Reliability (changes guarantees — read first)
 
@@ -160,9 +166,12 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 - `examples/reactor` — event → transactional outbox → `worker` → reactor side effect (`verify.rb`).
 - `examples/redis` — cache + store + Streams broker end-to-end (`verify.rb`).
+- `examples/cross_module` — module B reacts to module A's event by topic (`verify.rb`).
+- `examples/harness` — LLM harness: gates + tool=command, sync + durable + worker-driven (`verify.rb`).
+- `examples/realtime` — provider-agnostic realtime voice loop on the InMemory adapter (`verify.rb`).
 
 ## Gems
 
 `shaolin-core`, `-cqrs`, `-activerecord`, `-dto`, `-http`, `-server`, `-cli`, `-messaging`, `-jobs`,
-`-rabbitmq`, `-redis` (11). Optional transports (`-rabbitmq`, `-redis`) are commented in the generated
-`Gemfile` — uncomment what you need.
+`-rabbitmq`, `-redis`, `-llm`, `-harness` (13). Optional transports/integrations (`-rabbitmq`, `-redis`,
+`-llm`, `-harness`) are added as needed.
