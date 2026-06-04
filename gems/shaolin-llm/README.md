@@ -21,4 +21,16 @@ completion.usage           # token counts
 - `Shaolin::LLM.register_provider!(client:)` registers `llm.client` (defaults to the OpenAI adapter
   from `OPENAI_MODEL`).
 
-Realtime/audio (OpenAI Realtime) is a separate, later port. Live tests are opt-in: `RUN_LIVE=1`.
+## Realtime / audio (`Shaolin::LLM::Realtime`)
+
+A provider-agnostic streaming substrate — build realtime/voice on any backend:
+
+- normalized session `Event`s: `session_started`, `transcript_delta`, `audio_delta`, `tool_call`,
+  `turn_completed`, `error`, `session_closed`;
+- `Audio` (PCM16 base64 + framing); a `Session`/`Client` port —
+  `send_audio` / `send_text` / `commit` / `tool_result` / `close` + `on_event`;
+- `Realtime::InMemory` — scriptable adapter to build & test voice/tool flows with no provider/network;
+- `Realtime::OpenAI` — maps OpenAI's Realtime WebSocket both ways via an injectable transport
+  (unit-tested without a network; wrap a WebSocket gem for the live socket).
+
+See `examples/realtime`. Live tests are opt-in: `RUN_LIVE=1`.
