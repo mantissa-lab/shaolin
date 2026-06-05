@@ -1,11 +1,13 @@
-require "dry/inflector"
+require "shaolin/core"
 
 module Shaolin
   module CLI
     # Single source of inflection conventions, so generated names match the
-    # kernel's container-key conventions and the proven demo layout.
+    # kernel's container-key conventions and the proven demo layout. Uses THE
+    # shared Shaolin::Inflector (acronym-aware) so generator names and the zeitwerk
+    # autoloader agree (e.g. url_maps -> URLMaps in both).
     module Naming
-      INFLECTOR = Dry::Inflector.new
+      INFLECTOR = Shaolin::Inflector.instance
 
       module_function
 

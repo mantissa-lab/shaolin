@@ -14,6 +14,8 @@ module Shaolin
     #     end
     #   end
     class CommandHandler
+      include Shaolin::Imports # `import("other.thing")` — validated cross-module access
+
       def self.handles(command_class) = (@handled_command = command_class)
       def self.handled_command = @handled_command
 

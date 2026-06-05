@@ -65,6 +65,26 @@ RSpec.describe Shaolin::CLI::Isolation do
     end
   end
 
+  it "flags import(\"x\") when x is not declared in the module's manifest" do
+    Dir.mktmpdir do |root|
+      modules = File.join(root, "app/modules")
+      write(modules, "billing/module.rb", 'Shaolin.module("billing") { imports "accounts.balance_reader" }')
+      write(modules, "billing/charger.rb", <<~RUBY)
+        module Billing
+          class Charger
+            def ok = import("accounts.balance_reader")   # declared -> clean
+            def bad = import("accounts.secret")           # undeclared -> flagged
+          end
+        end
+      RUBY
+
+      violations = described_class.new(modules).violations
+      undeclared = violations.select { |v| v.rule == "undeclared-import" }
+      expect(undeclared.size).to eq(1)
+      expect(undeclared.first.message).to include("accounts.secret")
+    end
+  end
+
   it "still flags a reactor that references another module's event CLASS" do
     Dir.mktmpdir do |root|
       modules = File.join(root, "app/modules")

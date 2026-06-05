@@ -1,4 +1,5 @@
 require "json"
+require "shaolin/core"
 
 module Shaolin
   module Redis
@@ -8,6 +9,8 @@ module Shaolin
     # from Cache: Store is the source of truth (no implicit TTL), Cache is
     # disposable. Counters use native INCR (integers, not JSON).
     class Store
+      include Shaolin::Store
+
       def initialize(pool:, namespace: "store")
         @pool = pool
         @namespace = namespace

@@ -22,13 +22,14 @@ module Shaolin
         @module_dirs.flat_map do |dir|
           own_ns = @namespaces[File.basename(dir)]
           others = @namespaces.values - [own_ns]
-          Dir.glob(File.join(dir, "**", "*.rb")).flat_map { |file| scan(file, dir, own_ns, others) }
+          declared = declared_imports(dir)
+          Dir.glob(File.join(dir, "**", "*.rb")).flat_map { |file| scan(file, dir, others, declared) }
         end
       end
 
       private
 
-      def scan(file, dir, _own_ns, others)
+      def scan(file, dir, others, declared)
         result = Prism.parse_file(file)
         return [] unless result.success?
 
@@ -52,19 +53,66 @@ module Shaolin
                                  "require_relative escapes the module folder: #{path}")
         end
 
+        walker.imports.uniq.each do |key, line|
+          next if declared.include?(key)
+
+          found << Violation.new(rel, line, "undeclared-import",
+                                 "import(#{key.inspect}) is not declared in module.rb (add `imports #{key.inspect}`)")
+        end
+
         found
       end
 
+      # Strings declared in this module's manifest via `imports "..."` and
+      # `imports events: [...]` — the allow-list for `import("...")` calls.
+      def declared_imports(dir)
+        manifest = File.join(dir, "module.rb")
+        return [] unless File.file?(manifest)
+
+        result = Prism.parse_file(manifest)
+        return [] unless result.success?
+
+        walker = ManifestWalker.new
+        result.value.accept(walker)
+        walker.declared
+      end
+
       def relative(file) = file.sub("#{File.expand_path(@modules_dir)}/", "")
+
+      # Collects the import keys declared in a module.rb manifest.
+      class ManifestWalker < Prism::Visitor
+        def initialize
+          super
+          @declared = []
+        end
+
+        attr_reader :declared
+
+        def visit_call_node(node)
+          if node.name == :imports
+            args = node.arguments&.arguments || []
+            args.each do |arg|
+              @declared << arg.unescaped if arg.is_a?(Prism::StringNode)
+              next unless arg.is_a?(Prism::KeywordHashNode)
+
+              arg.elements.grep(Prism::AssocNode).each do |pair|
+                pair.value.elements.each { |e| @declared << e.unescaped if e.is_a?(Prism::StringNode) } if pair.value.is_a?(Prism::ArrayNode)
+              end
+            end
+          end
+          super
+        end
+      end
 
       # Collects root constant names (+ line) and require_relative paths (+ line).
       class Walker < Prism::Visitor
         def initialize
           @constants = []
           @requires = []
+          @imports = []
         end
 
-        attr_reader :constants, :requires
+        attr_reader :constants, :requires, :imports
 
         def visit_constant_path_node(node)
           @constants << [root_name(node), node.location.start_line]
@@ -75,6 +123,8 @@ module Shaolin
           arg = node.arguments&.arguments&.first
           if node.name == :require_relative && arg.is_a?(Prism::StringNode)
             @requires << [arg.unescaped, node.location.start_line]
+          elsif node.name == :import && node.receiver.nil? && arg.is_a?(Prism::StringNode)
+            @imports << [arg.unescaped, node.location.start_line]
           end
           super
         end

@@ -9,6 +9,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### ⚠️ Generator default changed: CRUD, not event-sourcing
+
+- `shaolin g module <name>` now scaffolds a **plain CRUD module** by default (model + DTO + controller +
+  migration). Event sourcing is **opt-in via `--es`** (the full CQRS command/event/aggregate/projection/
+  read-model). Rationale (agent feedback): ES is powerful but heavy; the path of least resistance
+  shouldn't push you into ~11 files for CRUD-shaped data. ES machinery stays first-class — you pay its
+  ceremony when you ask. `--reactor` now requires `--es`. Already-generated apps are unaffected.
+
 ### LLM harness (`shaolin-llm` + `shaolin-harness`)
 
 - **`shaolin-llm`** — provider-agnostic chat-completion port (`Shaolin::LLM::Client#complete`) with
@@ -106,6 +114,24 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   ```
   Runs inside the error boundary + request logger, before the router; can short-circuit (401/429).
   **Devise is Rails-coupled and does NOT work standalone — use warden or jwt.**
+
+### Agent-review papercuts (round 2)
+
+- **`Shaolin::Store` port + `Store::Memory`** — in-memory key-value/hash store for tests (mirrors
+  `Redis::Store`, JSON round-trip → symbol keys); `Redis::Store` now implements the port.
+- **DTO coerces integer → `:float`** (`json.float` = coercible.float); `:string` stays strict.
+- **`shaolin db reset`** (DEV): drop + create + migrate via a maintenance connection; refuses under
+  `SHAOLIN_ENV=production`. Ends the manual drop/recreate dance when a migration changes.
+- **One inflector** (`Shaolin::Inflector`) shared by the generator (Naming) and the zeitwerk autoloader —
+  fixes the latent acronym divergence the migration bug symptomized (`url_maps` is `URLMaps` in both now).
+- **`shaolin g field MODULE name:type`** — generates the add_column migration (CRUD table or ES read
+  model) + an explicit edit checklist for the rest (no fragile auto-rewrite of existing Ruby).
+- **`Shaolin::Keys.deep_symbolize`** for the jsonb edge; event data is guaranteed symbol-keyed even when
+  nested (test locks it through the AR store).
+- **`import("other.thing")`** (`Shaolin::Imports`, mixed into controllers/handlers) — validated
+  cross-module access via the module's own container instead of `Kernel["kernel.containers"][...][...]`;
+  a clear error (not a runtime nil) for an undeclared key, and `shaolin lint` flags undeclared `import`s
+  statically (`undeclared-import`).
 
 ### Fixes & DX (from downstream-agent feedback)
 

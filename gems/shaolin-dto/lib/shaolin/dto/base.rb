@@ -10,6 +10,11 @@ module Shaolin
   #     rule(:email) { key.failure("invalid") unless value.include?("@") }
   #   end
   class DTO < Dry::Validation::Contract
+    # Coerce JSON numbers leniently: an integer is accepted where a :float is
+    # declared (JSON `5` for a float field becomes 5.0 instead of failing
+    # "must be a float"). Inherited by every DTO; :string etc. stay strict.
+    config.types.register("json.float", Dry::Types["coercible.float"])
+
     def self.validate(input)
       Result.new(new.call(input))
     end

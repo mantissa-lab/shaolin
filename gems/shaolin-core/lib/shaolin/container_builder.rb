@@ -8,9 +8,6 @@ module Shaolin
   # -> key "queries.find_user" (const `<Module>::Queries::FindUser`). Zeitwerk
   # autoloads components by constant, so module code needs no `require_relative`.
   module ContainerBuilder
-    # Acronyms the autoloader/inflector must respect (e.g. `dto/` -> `DTO`).
-    ACRONYMS = %w[DTO ID API HTTP URL UUID].freeze
-
     def self.build(name:, dir:)
       const_ns = name.to_s
       klass = Class.new(Dry::System::Container)
@@ -27,10 +24,7 @@ module Shaolin
       klass
     end
 
-    def self.inflector
-      Dry::Inflector.new do |i|
-        ACRONYMS.each { |a| i.acronym(a) }
-      end
-    end
+    # The shared shaolin inflector (single source of truth, see Shaolin::Inflector).
+    def self.inflector = Shaolin::Inflector.instance
   end
 end

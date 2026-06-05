@@ -1,6 +1,7 @@
 require "thor"
 require_relative "generators/module_generator"
 require_relative "generators/new_app_generator"
+require_relative "generators/field_generator"
 
 module Shaolin
   module CLI
@@ -15,19 +16,27 @@ module Shaolin
         Generators::NewAppGenerator.new([app], opts).invoke_all
       end
 
-      desc "generate TYPE NAME", "Generate code (TYPE: module). --crud for a plain CRUD module; --reactor adds an async reactor"
+      desc "generate TYPE ...", "Generate code. TYPE: module NAME (default CRUD; --es; --reactor) | field MODULE name:type"
       map "g" => :generate
-      method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (no event sourcing)"
-      method_option :reactor, type: :boolean, default: false, desc: "also scaffold an async reactor + spec"
-      def generate(type, name)
+      method_option :es, type: :boolean, default: false, desc: "event-sourced CQRS module (default is CRUD)"
+      method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (the default)"
+      method_option :reactor, type: :boolean, default: false, desc: "also scaffold an async reactor (requires --es)"
+      def generate(type, *args)
         case type
         when "module"
-          gen = Generators::ModuleGenerator.new([name], { "crud" => options[:crud], "reactor" => options[:reactor] })
-          gen.destination_root = Dir.pwd
-          gen.invoke_all
+          name = args.first or raise Thor::Error, "usage: shaolin g module NAME"
+          gen = Generators::ModuleGenerator.new(
+            [name], { "es" => options[:es], "crud" => options[:crud], "reactor" => options[:reactor] }
+          )
+        when "field"
+          mod, spec = args
+          raise Thor::Error, "usage: shaolin g field MODULE name:type" unless mod && spec
+          gen = Generators::FieldGenerator.new([mod, spec])
         else
-          raise Thor::Error, "unknown generator #{type.inspect} (available: module)"
+          raise Thor::Error, "unknown generator #{type.inspect} (available: module, field)"
         end
+        gen.destination_root = Dir.pwd
+        gen.invoke_all
       end
 
       desc "server", "Boot the app and serve HTTP (Falcon by default)"
@@ -53,11 +62,23 @@ module Shaolin
       desc "migrate", "Apply schema (event store + jobs) and run read-model migrations — the release step"
       def migrate
         boot_app!
-        require "shaolin/activerecord"
-        Shaolin::AR::EventStoreSchema.create!
-        Shaolin::AR::Migrator.run(File.join(Dir.pwd, "app/modules"))
-        Shaolin::Jobs::Schema.create! if defined?(Shaolin::Jobs)
+        apply_schema!
         say "schema up to date", :green
+      end
+
+      desc "db ACTION", "Database tasks. ACTION: reset (drop + create + migrate — DEV ONLY)"
+      def db(action = "reset")
+        raise Thor::Error, "unknown db action #{action.inspect} (available: reset)" unless action == "reset"
+        raise Thor::Error, "refusing to db reset with SHAOLIN_ENV=production" if ENV["SHAOLIN_ENV"] == "production"
+
+        boot_app!
+        require "shaolin/activerecord"
+        cfg = ::ActiveRecord::Base.connection_db_config.configuration_hash
+        name = cfg[:database]
+        recreate_database!(cfg, name)
+        ::ActiveRecord::Base.establish_connection(cfg)
+        apply_schema!
+        say "db reset: dropped + recreated + migrated #{name}", :green
       end
 
       desc "rollback [STEPS]", "Roll back the last STEPS read-model migrations (default 1)"
@@ -223,6 +244,24 @@ module Shaolin
         raise Thor::Error, "not a shaolin app (no config/boot.rb in #{Dir.pwd})" unless File.exist?(boot)
 
         require boot
+      end
+
+      def apply_schema!
+        require "shaolin/activerecord"
+        Shaolin::AR::EventStoreSchema.create!
+        Shaolin::AR::Migrator.run(File.join(Dir.pwd, "app/modules"))
+        Shaolin::Jobs::Schema.create! if defined?(Shaolin::Jobs::Schema)
+      end
+
+      # Drop + recreate the database via a maintenance connection (postgres db),
+      # FORCE-terminating any open connections. Dev only.
+      def recreate_database!(cfg, name)
+        ::ActiveRecord::Base.connection_handler.clear_all_connections!
+        ::ActiveRecord::Base.establish_connection(cfg.merge(database: "postgres"))
+        conn = ::ActiveRecord::Base.connection
+        conn.execute(%(DROP DATABASE IF EXISTS "#{name}" WITH (FORCE)))
+        conn.execute(%(CREATE DATABASE "#{name}"))
+        ::ActiveRecord::Base.connection_handler.clear_all_connections!
       end
     end
   end
