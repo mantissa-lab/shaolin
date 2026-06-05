@@ -12,16 +12,18 @@
 
 - `shaolin new <app>`: scaffold a runnable app (Gemfile, config/boot.rb, bin/server, Dockerfile,
   Knative deploy/service.yaml, AGENTS.md).
-- `shaolin g module <plural>`: scaffold a full module that boots immediately. Inflection:
-  `orders` → namespace `Orders`, entity `Order`, command `CreateOrder`, event `OrderCreated`,
-  read model table `orders_read`, event topic `orders.order_created`.
+- `shaolin g module <plural>`: scaffold a module that boots immediately. **Default is a plain CRUD
+  module** (ActiveRecord model + DTO + controller + migration). Add **`--es`** for an event-sourced
+  CQRS module (command/event/aggregate/projection/read-model — pay the ceremony only when you need
+  event sourcing). Inflection: `orders` → namespace `Orders`, entity `Order`; with `--es` also command
+  `CreateOrder`, event `OrderCreated`, read model `orders_read`, topic `orders.order_created`.
 - `shaolin server` (Falcon), `shaolin console`, `shaolin migrate`, `shaolin routes`.
 - **Agent tools:** `shaolin describe --json` (machine-readable map of all modules: commands,
   events, imports, exports — load this to understand the whole app), `shaolin schemas`
   (command/event surface), `shaolin lint` (isolation check — flags cross-module reach-ins, including
   in reactors), `shaolin graph` (module dependency graph), `shaolin projections rebuild [name]`
-  (replay events into read models), `shaolin g module <name> --crud` (plain CRUD module, no event
-  sourcing), `shaolin g module <name> --reactor` (also scaffold an async reactor + spec).
+  (replay events into read models), `shaolin g module <name> --es` (event-sourced CQRS module; default
+  is CRUD), `shaolin g module <name> --es --reactor` (also scaffold an async reactor + spec).
 - **Async runtimes:** `shaolin worker` (process the outbox — runs reactors; `WORKER_CONCURRENCY=N`
   threads, retries with exponential backoff, dead-letter on exhaustion, graceful SIGTERM),
   `shaolin scheduler` (fire `Shaolin.schedule` tasks; single leader via a Postgres advisory lock).
@@ -63,8 +65,8 @@
 
 ## Async: reactors, worker, scheduler, RabbitMQ
 
-- **Reactor** = an async event handler for side effects. Scaffold with `g module <name> --reactor`
-  or add `reactors/<x>_reactor.rb` by hand. When its subscribed event is appended, the `:jobs`
+- **Reactor** = an async event handler for side effects (event-sourced modules only). Scaffold with
+  `g module <name> --es --reactor` or add `reactors/<x>_reactor.rb` by hand. When its subscribed event is appended, the `:jobs`
   provider inserts an outbox row **in the same transaction** as the event (transactional outbox —
   no lost effect on a crash between commit and side effect).
 - **Reacting to ANOTHER module's event (cross-module, isolation-clean):** subscribe by the dotted

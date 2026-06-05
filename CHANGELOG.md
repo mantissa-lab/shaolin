@@ -9,6 +9,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### ⚠️ Generator default changed: CRUD, not event-sourcing
+
+- `shaolin g module <name>` now scaffolds a **plain CRUD module** by default (model + DTO + controller +
+  migration). Event sourcing is **opt-in via `--es`** (the full CQRS command/event/aggregate/projection/
+  read-model). Rationale (agent feedback): ES is powerful but heavy; the path of least resistance
+  shouldn't push you into ~11 files for CRUD-shaped data. ES machinery stays first-class — you pay its
+  ceremony when you ask. `--reactor` now requires `--es`. Already-generated apps are unaffected.
+
 ### LLM harness (`shaolin-llm` + `shaolin-harness`)
 
 - **`shaolin-llm`** — provider-agnostic chat-completion port (`Shaolin::LLM::Client#complete`) with

@@ -15,14 +15,17 @@ module Shaolin
         Generators::NewAppGenerator.new([app], opts).invoke_all
       end
 
-      desc "generate TYPE NAME", "Generate code (TYPE: module). --crud for a plain CRUD module; --reactor adds an async reactor"
+      desc "generate TYPE NAME", "Generate code (TYPE: module). Default is plain CRUD; --es for event-sourcing; --reactor (with --es) adds an async reactor"
       map "g" => :generate
-      method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (no event sourcing)"
-      method_option :reactor, type: :boolean, default: false, desc: "also scaffold an async reactor + spec"
+      method_option :es, type: :boolean, default: false, desc: "event-sourced CQRS module (default is CRUD)"
+      method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (the default)"
+      method_option :reactor, type: :boolean, default: false, desc: "also scaffold an async reactor (requires --es)"
       def generate(type, name)
         case type
         when "module"
-          gen = Generators::ModuleGenerator.new([name], { "crud" => options[:crud], "reactor" => options[:reactor] })
+          gen = Generators::ModuleGenerator.new(
+            [name], { "es" => options[:es], "crud" => options[:crud], "reactor" => options[:reactor] }
+          )
           gen.destination_root = Dir.pwd
           gen.invoke_all
         else

@@ -26,15 +26,26 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     conn.tables.each { |t| conn.drop_table(t, force: :cascade) }
   end
 
-  def generate(name, root, crud: false, reactor: false)
-    gen = described_class.new([name], { "crud" => crud, "reactor" => reactor })
+  def generate(name, root, es: false, crud: false, reactor: false)
+    gen = described_class.new([name], { "es" => es, "crud" => crud, "reactor" => reactor })
     gen.destination_root = root
     gen.invoke_all
   end
 
-  it "generates the canonical module files" do
+  it "defaults to a plain CRUD module (no event sourcing)" do
     Dir.mktmpdir do |root|
-      generate("widgets", root)
+      generate("widgets", root) # no flags -> CRUD
+      base = File.join(root, "app/modules/widgets")
+      expect(File).to exist(File.join(base, "widget.rb"))
+      expect(File).to exist(File.join(base, "controllers/widgets_controller.rb"))
+      expect(File).not_to exist(File.join(base, "events"))
+      expect(File).not_to exist(File.join(base, "command_handlers"))
+    end
+  end
+
+  it "generates the canonical event-sourced module files with --es" do
+    Dir.mktmpdir do |root|
+      generate("widgets", root, es: true)
       base = File.join(root, "app/modules/widgets")
       %w[
         module.rb commands/create_widget.rb events/widget_created.rb widget.rb
@@ -50,7 +61,7 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
 
   it "boots + migrates a module whose name camelizes to an acronym (api_keys -> APIKeys)" do
     Dir.mktmpdir do |root|
-      generate("api_keys", root)
+      generate("api_keys", root, es: true)
 
       # the migration class must match AR's filename->constant rule, not the
       # dry-inflector namespace (which would be CreateAPIKeysRead -> NameError)
@@ -68,7 +79,7 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
 
   it "generates a module that boots and serves the full CQRS/ES flow" do
     Dir.mktmpdir do |root|
-      generate("widgets", root)
+      generate("widgets", root, es: true)
 
       Shaolin::AR.register_provider!(config: PG_CONFIG)
       Shaolin::CQRS.register_provider!
@@ -97,9 +108,9 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     end
   end
 
-  it "scaffolds a reactor + spec with --reactor" do
+  it "scaffolds a reactor + spec with --es --reactor" do
     Dir.mktmpdir do |root|
-      generate("orders", root, reactor: true)
+      generate("orders", root, es: true, reactor: true)
       base = File.join(root, "app/modules/orders")
       reactor = File.join(base, "reactors/order_reactor.rb")
       expect(File).to exist(reactor)
@@ -110,9 +121,9 @@ RSpec.describe Shaolin::CLI::Generators::ModuleGenerator do
     end
   end
 
-  it "refuses --reactor together with --crud (a CRUD module has no events)" do
+  it "refuses --reactor without --es (a CRUD module has no events)" do
     Dir.mktmpdir do |root|
-      expect { generate("notes", root, crud: true, reactor: true) }.to raise_error(Thor::Error, /reactor/)
+      expect { generate("notes", root, reactor: true) }.to raise_error(Thor::Error, /reactor/)
     end
   end
 

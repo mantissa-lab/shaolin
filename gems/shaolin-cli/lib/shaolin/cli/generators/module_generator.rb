@@ -14,10 +14,12 @@ module Shaolin
         include Thor::Actions
 
         argument :name, type: :string, desc: "module name (plural, e.g. users)"
+        class_option :es, type: :boolean, default: false,
+                            desc: "event-sourced CQRS module (default is plain CRUD)"
         class_option :crud, type: :boolean, default: false,
-                            desc: "plain CRUD module (ActiveRecord, no event sourcing)"
+                            desc: "plain CRUD module (the default; kept for explicitness)"
         class_option :reactor, type: :boolean, default: false,
-                            desc: "also scaffold an async Reactor (outbox side effect) + spec"
+                            desc: "also scaffold an async Reactor (requires --es; outbox side effect) + spec"
 
         def self.source_root
           File.expand_path("../templates", __dir__)
@@ -41,11 +43,12 @@ module Shaolin
         end
 
         def create_module
-          if options[:crud] && options[:reactor]
-            raise Thor::Error, "--reactor needs events; it can't combine with --crud (a CRUD module has none)"
-          end
+          raise Thor::Error, "pass either --es or --crud, not both" if options[:es] && options[:crud]
+          raise Thor::Error, "--reactor needs events; add --es (a CRUD module has none)" if options[:reactor] && !options[:es]
 
-          options[:crud] ? create_crud_module : create_cqrs_module
+          # Default is CRUD; event-sourcing (CQRS) is opt-in via --es. The ES
+          # machinery is first-class, but you pay its ceremony only when you ask.
+          options[:es] ? create_cqrs_module : create_crud_module
           create_reactor if options[:reactor]
         end
 
