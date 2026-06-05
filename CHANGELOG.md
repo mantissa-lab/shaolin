@@ -126,8 +126,9 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   Rails). Response bodies are generic in v1.
 - **Tags + response schemas** (agent feedback): every operation is now tagged by its module (`tags:
   ["conversions"]`) so Swagger UI groups by resource instead of one "default" bucket. Document a response
-  body by annotating the route — `get "/x/:id", :show, response: SomeView` (a DTO/view class → 200, or
-  `response: { 201 => View }` for several); the schema lands in `responses.<code>.content`.
+  body by annotating the route — `get "/x/:id", :show, response: SomeView` (a DTO/view class → 200),
+  `response: [SomeView]` for a **collection** (`{type: array, items}` — list/index endpoints), or
+  `response: { 201 => View }` for several statuses; the schema lands in `responses.<code>.content`.
 - **Served live**: `Shaolin::HTTP.register_provider!(swagger: true)` serves the spec at `GET /openapi.json`
   and interactive **Swagger UI at `GET /swagger`** (generated at boot). Generated apps enable it in dev
   (`!production`) out of the box; off by default in production. The generator lives in `shaolin-http`
