@@ -20,8 +20,12 @@ module Shaolin
           @routes = []
         end
 
+        # `response:` (optional) documents the response schema for OpenAPI — a DTO
+        # class (→ 200) or a { status => DTO } hash. Ignored by routing.
         %i[get post put patch delete].each do |verb|
-          define_method(verb) { |path, action| @routes << { method: verb, path: path, action: action } }
+          define_method(verb) do |path, action, response: nil|
+            @routes << { method: verb, path: path, action: action, response: response }
+          end
         end
       end
 

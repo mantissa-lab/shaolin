@@ -50,6 +50,49 @@ RSpec.describe Shaolin::HTTP::OpenAPI do
       # path param surfaced
       id_param = doc["paths"]["/products/{id}"]["get"]["parameters"].first
       expect(id_param).to include("name" => "id", "in" => "path")
+
+      # every operation is tagged by its module (Swagger UI groups by tag)
+      ops = doc["paths"].values.flat_map(&:values)
+      expect(ops).to all(include("tags" => ["products"]))
+    end
+  end
+
+  it "documents response schemas declared with `response:` on a route" do
+    Dir.mktmpdir do |root|
+      dir = File.join(root, "app/modules/things")
+      FileUtils.mkdir_p(File.join(dir, "controllers"))
+      FileUtils.mkdir_p(File.join(dir, "views"))
+      File.write(File.join(dir, "module.rb"), 'Shaolin.module("things") {}')
+      File.write(File.join(dir, "views/thing_view.rb"), <<~RUBY)
+        require "shaolin/dto"
+        module Things
+          module Views
+            class ThingView < Shaolin::DTO
+              json { required(:id).filled(:string); required(:name).filled(:string) }
+            end
+          end
+        end
+      RUBY
+      File.write(File.join(dir, "controllers/things_controller.rb"), <<~RUBY)
+        module Things
+          module Controllers
+            class ThingsController < Shaolin::HTTP::Controller
+              routes { get "/things/:id", :show, response: Views::ThingView }
+              def show(req) = json({ id: req[:id], name: "x" })
+            end
+          end
+        end
+      RUBY
+
+      Shaolin::AR.register_provider!(config: DB_CONFIG)
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!
+      Shaolin::App.new(root: root).boot!
+
+      doc = described_class.generate(Shaolin::Kernel["kernel.containers"], File.join(root, "app/modules"))
+      schema = doc.dig("paths", "/things/{id}", "get", "responses", "200", "content", "application/json", "schema")
+      expect(schema).to eq("$ref" => "#/components/schemas/ThingView")
+      expect(doc["components"]["schemas"]["ThingView"]["properties"].keys).to contain_exactly("id", "name")
     end
   end
 end
