@@ -1,3 +1,5 @@
+require "shaolin/core"
+
 module Shaolin
   module Jobs
     # Base for async reactors (side effects: send email, publish to a broker,
@@ -17,6 +19,12 @@ module Shaolin
     # topic to its event class at wire time and binds the block under that class,
     # so `call(event)` dispatch is identical for both forms.
     class Reactor
+      # Cross-module reads use the same `import("other.key")` as controllers and
+      # handlers — resolved via this reactor's OWN module container, validated
+      # against the manifest, and checked statically by `shaolin lint`. Reactor
+      # blocks run via `instance_exec`, so `import(...)` is in scope inside them.
+      include Shaolin::Imports
+
       def self.on(event_or_topic, &block)
         if event_or_topic.is_a?(String)
           topic_handlers[event_or_topic] = block

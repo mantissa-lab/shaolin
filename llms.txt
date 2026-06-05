@@ -57,8 +57,10 @@
 ## Rules for an agent changing a module
 
 1. Stay inside one module folder. Cross-module access only via declared `imports`/`exports` — from a
-   controller/handler use `import("other.thing")` (validated against the manifest; `lint` flags
-   undeclared keys). React to another module's events by topic (`on("mod.event")` + `imports events:`).
+   controller, command/query handler, **reactor**, or any service object that does `include
+   Shaolin::Imports`, use `import("other.thing")` (validated against the manifest; `lint` flags
+   undeclared keys — it scans every `*.rb`, `reactors/` included). React to another module's events by
+   topic (`on("mod.event")` + `imports events:`). Never reach into `Kernel["kernel.containers"]` by hand.
 2. Reference sibling files with explicit `require_relative` (no autoloading).
 3. To add a field: edit the command (attribute), event (data), DTO (rule), aggregate (apply),
    projection (write), and the read-model migration (column). Keep them consistent.
@@ -133,7 +135,9 @@
   `Shaolin::Testing.clean!` to call directly.
 - **Migrations are a release step.** With `SHAOLIN_ENV=production`, boot does NOT auto-create schema or
   migrate; run `shaolin migrate` once per release (event-store + jobs schema + read-model migrations,
-  advisory-locked so concurrent replicas don't race). In dev it's automatic.
+  advisory-locked so concurrent replicas don't race). In dev it's automatic. **Never edit an applied
+  migration** — `migrate` checksums applied files and raises on drift (the edit would never reach a DB
+  that already has the version). In dev `shaolin db reset` to re-apply; in prod add a new migration.
 - **HTTP limits.** Request bodies are capped (`SHAOLIN_MAX_BODY_BYTES`, default 1 MiB → 413). Every
   response carries `x-request-id` (propagated from an inbound header).
 - **Unified logger `Shaolin::Log`** — one structured pipeline for everything (HTTP request line, worker,
