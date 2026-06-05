@@ -82,20 +82,30 @@ module Shaolin
         op
       end
 
-      # `response:` on the route → responses. A DTO class means 200; a
-      # { status => DTO } hash documents several. A DTO/view is anything with
-      # `.schema.json_schema` (e.g. a Shaolin::DTO). Nil → generic 200.
+      # `response:` on the route → responses. A DTO/view class means 200; a single-
+      # element array `[View]` means a 200 collection (array of that schema); a
+      # `{ status => View | [View] }` hash documents several. A view is anything
+      # with `.schema.json_schema` (e.g. a Shaolin::DTO). Nil → generic 200.
       def build_responses(spec, schemas)
         return { "200" => { "description" => "OK" } } if spec.nil?
 
         mapping = spec.is_a?(Hash) ? spec : { 200 => spec }
-        mapping.each_with_object({}) do |(status, dto), out|
+        mapping.each_with_object({}) do |(status, view), out|
           resp = { "description" => "OK" }
-          name = register_schema(dto, schemas) if dto
-          if name
-            resp["content"] = { "application/json" => { "schema" => { "$ref" => "#/components/schemas/#{name}" } } }
-          end
+          schema = schema_for(view, schemas)
+          resp["content"] = { "application/json" => { "schema" => schema } } if schema
           out[status.to_s] = resp
+        end
+      end
+
+      # `[View]` -> { type: array, items: $ref }; `View` -> $ref; nil otherwise.
+      def schema_for(view, schemas)
+        if view.is_a?(Array)
+          name = register_schema(view.first, schemas) or return nil
+          { "type" => "array", "items" => { "$ref" => "#/components/schemas/#{name}" } }
+        elsif view
+          name = register_schema(view, schemas) or return nil
+          { "$ref" => "#/components/schemas/#{name}" }
         end
       end
 

@@ -77,8 +77,12 @@ RSpec.describe Shaolin::HTTP::OpenAPI do
         module Things
           module Controllers
             class ThingsController < Shaolin::HTTP::Controller
-              routes { get "/things/:id", :show, response: Views::ThingView }
+              routes do
+                get "/things/:id", :show,  response: Views::ThingView
+                get "/things",     :index, response: [Views::ThingView]
+              end
               def show(req) = json({ id: req[:id], name: "x" })
+              def index(_req) = json([])
             end
           end
         end
@@ -93,6 +97,10 @@ RSpec.describe Shaolin::HTTP::OpenAPI do
       schema = doc.dig("paths", "/things/{id}", "get", "responses", "200", "content", "application/json", "schema")
       expect(schema).to eq("$ref" => "#/components/schemas/ThingView")
       expect(doc["components"]["schemas"]["ThingView"]["properties"].keys).to contain_exactly("id", "name")
+
+      # list endpoint: response: [View] -> array schema
+      list = doc.dig("paths", "/things", "get", "responses", "200", "content", "application/json", "schema")
+      expect(list).to eq("type" => "array", "items" => { "$ref" => "#/components/schemas/ThingView" })
     end
   end
 end
