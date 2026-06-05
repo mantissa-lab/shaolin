@@ -8,6 +8,8 @@ module Shaolin
     # the single edge (`render_result`). Holds no request state — one instance is
     # reused; the action receives the Request.
     class Controller
+      include Shaolin::Imports # `import("other.thing")` — validated cross-module access
+
       JSON_HEADERS = { "content-type" => "application/json" }.freeze
 
       # Collects route declarations inside `routes do ... end`.

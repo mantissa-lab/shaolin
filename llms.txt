@@ -23,7 +23,9 @@
   (command/event surface), `shaolin lint` (isolation check — flags cross-module reach-ins, including
   in reactors), `shaolin graph` (module dependency graph), `shaolin projections rebuild [name]`
   (replay events into read models), `shaolin g module <name> --es` (event-sourced CQRS module; default
-  is CRUD), `shaolin g module <name> --es --reactor` (also scaffold an async reactor + spec).
+  is CRUD), `shaolin g module <name> --es --reactor` (also scaffold an async reactor + spec),
+  `shaolin g field <module> <name>:<type>` (add-column migration + edit checklist),
+  `shaolin db reset` (dev: drop+create+migrate; lint also flags undeclared `import`s).
 - **Async runtimes:** `shaolin worker` (process the outbox — runs reactors; `WORKER_CONCURRENCY=N`
   threads, retries with exponential backoff, dead-letter on exhaustion, graceful SIGTERM),
   `shaolin scheduler` (fire `Shaolin.schedule` tasks; single leader via a Postgres advisory lock).
@@ -51,7 +53,9 @@
 
 ## Rules for an agent changing a module
 
-1. Stay inside one module folder. Cross-module access only via declared `imports`/`exports`.
+1. Stay inside one module folder. Cross-module access only via declared `imports`/`exports` — from a
+   controller/handler use `import("other.thing")` (validated against the manifest; `lint` flags
+   undeclared keys). React to another module's events by topic (`on("mod.event")` + `imports events:`).
 2. Reference sibling files with explicit `require_relative` (no autoloading).
 3. To add a field: edit the command (attribute), event (data), DTO (rule), aggregate (apply),
    projection (write), and the read-model migration (column). Keep them consistent.

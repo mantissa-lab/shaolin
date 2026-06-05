@@ -11,6 +11,8 @@ module Shaolin
     #     def call(query) = ReadModels::UserRecord.find_by(id: query.id)
     #   end
     class QueryHandler
+      include Shaolin::Imports # `import("other.thing")` — validated cross-module access
+
       def self.handles(query_class) = (@handled_query = query_class)
       def self.handled_query = @handled_query
     end

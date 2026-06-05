@@ -30,5 +30,20 @@ RSpec.describe "event store backend (AR)" do
       expect(read.size).to eq(1)
       expect(read.first.data).to eq(msg: "hi", n: 2)
     end
+
+    it "preserves symbol keys for NESTED event data (no string keys creep in)" do
+      Shaolin::AR::EventStoreSchema.create!
+      client = RubyEventStore::Client.new(repository: Shaolin::AR.event_repository)
+      stub_const("NestedProbed", Class.new(RubyEventStore::Event))
+
+      client.publish(
+        NestedProbed.new(data: { id: "a1", attribution: { source: "ad", tags: [{ k: "v" }] } }),
+        stream_name: "Nested$1"
+      )
+
+      data = client.read.stream("Nested$1").to_a.first.data
+      expect(data).to eq(id: "a1", attribution: { source: "ad", tags: [{ k: "v" }] })
+      expect(data[:attribution][:tags].first.keys).to eq([:k]) # symbols, not strings
+    end
   end
 end
