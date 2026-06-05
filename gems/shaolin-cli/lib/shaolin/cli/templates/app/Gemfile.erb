@@ -3,7 +3,12 @@ source "https://rubygems.org"
 # The whole shaolin framework in one gem — kernel, CQRS/ES, ActiveRecord, DTOs,
 # HTTP, server, jobs/outbox, messaging, Redis, RabbitMQ, LLM, harness, and the
 # `shaolin` CLI. `require "shaolin"` (config/boot.rb) loads it all.
-gem "shaolin"
+#
+# Installed from git (the gems are not on RubyGems). `glob:` lets Bundler see
+# every gemspec in the repo, so this single line resolves all sub-gems. The repo
+# is private — you need read access (SSH key, or swap to the https URL + a token).
+# Pin to a tag/branch for reproducibility, e.g. `tag: "v0.1.0"`.
+gem "shaolin", git: "git@github.com:mantissa-lab/shaolin.git", glob: "gems/*/*.gemspec"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
