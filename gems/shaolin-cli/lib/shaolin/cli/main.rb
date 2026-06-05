@@ -1,6 +1,7 @@
 require "thor"
 require_relative "generators/module_generator"
 require_relative "generators/new_app_generator"
+require_relative "generators/field_generator"
 
 module Shaolin
   module CLI
@@ -15,22 +16,27 @@ module Shaolin
         Generators::NewAppGenerator.new([app], opts).invoke_all
       end
 
-      desc "generate TYPE NAME", "Generate code (TYPE: module). Default is plain CRUD; --es for event-sourcing; --reactor (with --es) adds an async reactor"
+      desc "generate TYPE ...", "Generate code. TYPE: module NAME (default CRUD; --es; --reactor) | field MODULE name:type"
       map "g" => :generate
       method_option :es, type: :boolean, default: false, desc: "event-sourced CQRS module (default is CRUD)"
       method_option :crud, type: :boolean, default: false, desc: "plain CRUD module (the default)"
       method_option :reactor, type: :boolean, default: false, desc: "also scaffold an async reactor (requires --es)"
-      def generate(type, name)
+      def generate(type, *args)
         case type
         when "module"
+          name = args.first or raise Thor::Error, "usage: shaolin g module NAME"
           gen = Generators::ModuleGenerator.new(
             [name], { "es" => options[:es], "crud" => options[:crud], "reactor" => options[:reactor] }
           )
-          gen.destination_root = Dir.pwd
-          gen.invoke_all
+        when "field"
+          mod, spec = args
+          raise Thor::Error, "usage: shaolin g field MODULE name:type" unless mod && spec
+          gen = Generators::FieldGenerator.new([mod, spec])
         else
-          raise Thor::Error, "unknown generator #{type.inspect} (available: module)"
+          raise Thor::Error, "unknown generator #{type.inspect} (available: module, field)"
         end
+        gen.destination_root = Dir.pwd
+        gen.invoke_all
       end
 
       desc "server", "Boot the app and serve HTTP (Falcon by default)"
