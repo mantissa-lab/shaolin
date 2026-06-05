@@ -9,6 +9,27 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Migration drift detection (catches an edited applied migration)
+
+- `Shaolin::AR::Migrator.run` (used by `shaolin migrate` and dev boot's `migrate!`) now stores a SHA-256
+  checksum of every applied migration in a `shaolin_migration_checksums` table and **raises before
+  migrating** if an already-applied migration's file later changes on disk. This was a real foot-gun
+  (agent feedback): editing an applied migration is a silent divergence — the version is already in
+  `schema_migrations`, so the change never re-runs on a persistent/prod DB, while a fresh dev DB and
+  `shaolin db reset` hide it. The error names the drifted file and tells you what to do (`shaolin db
+  reset` in dev to re-apply from scratch; in prod, revert and add a NEW migration). Unapplied migrations
+  are free to change. The first run after upgrading blesses existing applied migrations at their current
+  content; edits after that are caught. `shaolin db reset` clears the checksum table with everything else.
+
+### `import("…")` now works in reactors (and any service object)
+
+- `Shaolin::Jobs::Reactor` now `include Shaolin::Imports`, so a reactor block resolves another module's
+  component with the same lint-checked `import("other.key")` as controllers and command/query handlers —
+  no more hand-navigating `Kernel["kernel.containers"][...]` (which also bypassed the static
+  `undeclared-import` lint). Any exported **service object** can opt in the same way: `include
+  Shaolin::Imports`. `shaolin lint` already scans every `*.rb` under a module (including `reactors/`),
+  so these calls are validated against the manifest everywhere.
+
 ### ⚠️ Generator default changed: CRUD, not event-sourcing
 
 - `shaolin g module <name>` now scaffolds a **plain CRUD module** by default (model + DTO + controller +
