@@ -25,7 +25,8 @@
   (replay events into read models), `shaolin g module <name> --es` (event-sourced CQRS module; default
   is CRUD), `shaolin g module <name> --es --reactor` (also scaffold an async reactor + spec),
   `shaolin g field <module> <name>:<type>` (add-column migration + edit checklist),
-  `shaolin db reset` (dev: drop+create+migrate; lint also flags undeclared `import`s).
+  `shaolin db reset` (dev: drop+create+migrate; lint also flags undeclared `import`s),
+  `shaolin openapi [--out FILE]` (OpenAPI 3.1 from controllers' routes + DTO request schemas).
 - **Async runtimes:** `shaolin worker` (process the outbox — runs reactors; `WORKER_CONCURRENCY=N`
   threads, retries with exponential backoff, dead-letter on exhaustion, graceful SIGTERM),
   `shaolin scheduler` (fire `Shaolin.schedule` tasks; single leader via a Postgres advisory lock).

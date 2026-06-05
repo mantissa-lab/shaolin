@@ -189,6 +189,22 @@ module Shaolin
         puts JSON.pretty_generate(Describe.schemas(File.join(Dir.pwd, "app/modules")))
       end
 
+      desc "openapi", "Generate an OpenAPI 3.1 document (paths from controllers, request schemas from DTOs)"
+      method_option :out, type: :string, desc: "write to a file (default: stdout)"
+      def openapi
+        boot_app!
+        require_relative "open_api"
+        require "json"
+        doc = OpenAPI.generate(Shaolin::Kernel["kernel.containers"], File.join(Dir.pwd, "app/modules"))
+        json = JSON.pretty_generate(doc)
+        if options[:out]
+          File.write(options[:out], json)
+          say "wrote #{options[:out]}", :green
+        else
+          puts json
+        end
+      end
+
       desc "lint", "Check module isolation (no cross-module reach-ins) — Prism static analysis"
       def lint
         require_relative "isolation"

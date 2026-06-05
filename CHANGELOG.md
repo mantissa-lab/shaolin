@@ -115,6 +115,16 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   Runs inside the error boundary + request logger, before the router; can short-circuit (401/429).
   **Devise is Rails-coupled and does NOT work standalone — use warden or jwt.**
 
+### OpenAPI
+
+- **`shaolin openapi [--out FILE]`** — generates an **OpenAPI 3.1** document from a booted app: paths /
+  methods / `operationId` / path params (`{id}`) from each controller's `route_set`; **request-body
+  schemas from the DTO each action validates** (linked by a static scan for `SomeDTO.validate`, then
+  dry-schema's `:json_schema` extension — types, required, constraints, for free); standard status codes
+  + the shared `Error` schema from the Result→HTTP contract. OpenAPI 3.1 aligns with JSON Schema, so DTO
+  schemas drop in directly; paths are correctly templatized (the gap rspec-openapi couldn't fill without
+  Rails). Response bodies are generic in v1.
+
 ### Agent-review papercuts (round 2)
 
 - **`Shaolin::Store` port + `Store::Memory`** — in-memory key-value/hash store for tests (mirrors
