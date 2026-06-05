@@ -10,6 +10,11 @@
 
 ## Build an app
 
+- **One gem.** The umbrella `shaolin` gem pulls the whole stack; an app's `Gemfile` is `gem "shaolin"`
+  and `config/boot.rb` is a single `require "shaolin"` (it loads core, cqrs, activerecord, dto, http,
+  server, jobs, messaging, redis, rabbitmq, llm, harness). The `shaolin` CLI ships with it. (Local
+  path-gem builds via `shaolin new --path` still list every sub-gem by path — Bundler can't resolve a
+  path gem's deps as paths transitively — but boot is still just `require "shaolin"`.)
 - `shaolin new <app>`: scaffold a runnable app (Gemfile, config/boot.rb, bin/server, Dockerfile,
   Knative deploy/service.yaml, AGENTS.md).
 - `shaolin g module <plural>`: scaffold a module that boots immediately. **Default is a plain CRUD

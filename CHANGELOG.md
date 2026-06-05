@@ -9,6 +9,18 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Umbrella gem: `gem "shaolin"` + `require "shaolin"`
+
+- New meta-gem **`shaolin`** (like the `rails` gem) depends on the whole stack and `require "shaolin"`
+  loads it — so an app's `Gemfile` is one line (`gem "shaolin"`) and `config/boot.rb` is one require,
+  instead of listing/requiring each sub-gem. It pins every sub-gem to its exact version so the framework
+  moves in lockstep, and pulls **everything** (core, cqrs, activerecord, dto, http, server, jobs,
+  messaging, redis, rabbitmq, llm, harness) plus the `shaolin` CLI. The CLI command stack (Thor/Prism)
+  is a dependency — so the `shaolin` binary installs — but is **not** required into a booted app/worker.
+  Generated apps use it now (`shaolin new` Gemfile + boot). Caveat: the one-line Gemfile applies to a
+  **published** consumer; the local path-gem build (`--path`) still lists every sub-gem by path, because
+  Bundler doesn't resolve a path gem's dependencies as paths transitively.
+
 ### Migration drift detection (catches an edited applied migration)
 
 - `Shaolin::AR::Migrator.run` (used by `shaolin migrate` and dev boot's `migrate!`) now stores a SHA-256

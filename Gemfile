@@ -1,5 +1,6 @@
 source "https://rubygems.org"
 
+gem "shaolin", path: "gems/shaolin" # umbrella: depends on + requires all of the below
 gem "shaolin-core", path: "gems/shaolin-core"
 gem "shaolin-cqrs", path: "gems/shaolin-cqrs"
 gem "shaolin-activerecord", path: "gems/shaolin-activerecord"

@@ -1,18 +1,9 @@
 source "https://rubygems.org"
 
-# shaolin framework
-gem "shaolin-core"
-gem "shaolin-cqrs"
-gem "shaolin-activerecord"
-gem "shaolin-dto"
-gem "shaolin-http"
-gem "shaolin-server"
-gem "shaolin-cli"
-gem "shaolin-messaging"
-gem "shaolin-jobs"
-# Optional transports / Redis (uncomment what you need):
-# gem "shaolin-rabbitmq"   # RabbitMQ broker (needs a broker)
-# gem "shaolin-redis"      # Redis cache, store, and Streams/Pub-Sub broker (needs redis-server)
+# The whole shaolin framework in one gem — kernel, CQRS/ES, ActiveRecord, DTOs,
+# HTTP, server, jobs/outbox, messaging, Redis, RabbitMQ, LLM, harness, and the
+# `shaolin` CLI. `require "shaolin"` (config/boot.rb) loads it all.
+gem "shaolin"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
