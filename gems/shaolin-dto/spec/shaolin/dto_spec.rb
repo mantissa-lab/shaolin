@@ -26,6 +26,26 @@ RSpec.describe Shaolin::DTO do
   end
 end
 
+class PriceDTO < Shaolin::DTO
+  json do
+    required(:name).filled(:string)
+    required(:amount).filled(:float)
+  end
+end
+
+RSpec.describe "DTO numeric coercion" do
+  it "coerces an integer to a float for a :float field (JSON 5 -> 5.0)" do
+    result = PriceDTO.validate(name: "x", amount: 5)
+    expect(result.success?).to be(true)
+    expect(result.to_h).to eq(name: "x", amount: 5.0)
+  end
+
+  it "still rejects a non-numeric for :float, and keeps :string strict" do
+    expect(PriceDTO.validate(name: "x", amount: "nope").failure?).to be(true)
+    expect(PriceDTO.validate(name: 5, amount: 1.0).failure?).to be(true) # :string not coerced
+  end
+end
+
 class Money < Shaolin::ValueObject
   attribute :amount, Shaolin::Types::Integer
   attribute :currency, Shaolin::Types::String
