@@ -25,11 +25,11 @@ module Shaolin
     module Router
       LIVENESS = ->(_env) { [200, { "content-type" => "application/json" }, ['{"status":"ok"}']] }
 
-      def self.build(containers, middleware: [])
+      def self.build(containers, middleware: [], openapi: nil)
         defs = collect_route_defs(containers)
         detect_conflicts!(defs)
 
-        app = build_router(defs)
+        app = build_router(defs, openapi)
         middleware.reverse_each { |mw| app = mw.call(app) }
         app = RewindableInput.new(app)
         app = ErrorBoundary.new(app)
@@ -61,14 +61,19 @@ module Shaolin
         end
       end
 
-      def self.build_router(defs)
+      def self.build_router(defs, openapi = nil)
         liveness = LIVENESS
         readiness = method(:readiness_response)
         metrics = method(:metrics_response)
+        spec_json = (JSON.generate(openapi) if openapi)
         Hanami::Router.new do
           get("/healthz", to: liveness)
           get("/readyz",  to: readiness)
           get("/metrics", to: metrics)
+          if spec_json
+            get("/openapi.json", to: ->(_e) { [200, { "content-type" => "application/json" }, [spec_json]] })
+            get("/swagger", to: ->(_e) { [200, { "content-type" => "text/html; charset=utf-8" }, [SWAGGER_HTML]] })
+          end
           defs.each do |d|
             controller = d[:controller]
             action = d[:action]
@@ -77,6 +82,16 @@ module Shaolin
           end
         end
       end
+
+      # Swagger UI from the CDN, pointed at /openapi.json (no bundled assets).
+      SWAGGER_HTML = <<~HTML.freeze
+        <!doctype html><html><head><meta charset="utf-8"><title>API — Swagger UI</title>
+        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css"></head>
+        <body><div id="swagger-ui"></div>
+        <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+        <script>window.onload = () => SwaggerUIBundle({ url: '/openapi.json', dom_id: '#swagger-ui' });</script>
+        </body></html>
+      HTML
 
       def self.readiness_response(_env)
         ok, detail = Shaolin::Health.status

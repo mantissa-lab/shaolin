@@ -20,7 +20,7 @@ RSpec.describe "shaolin-http integration" do
     Shaolin::Health.reset!
   end
 
-  def build_and_boot(middleware: [])
+  def build_and_boot(middleware: [], swagger: false)
     Dir.mktmpdir do |root|
       controllers = File.join(root, "app/modules/users/controllers")
       FileUtils.mkdir_p(controllers)
@@ -51,7 +51,8 @@ RSpec.describe "shaolin-http integration" do
       RUBY
 
       Shaolin::CQRS.register_provider!
-      Shaolin::HTTP.register_provider!(middleware: middleware)
+      Shaolin::HTTP.register_provider!(middleware: middleware, swagger: swagger,
+                                       modules_dir: File.join(root, "app/modules"))
       Shaolin::App.new(root: root).boot!
       yield Shaolin::Kernel["http.app"]
     end
@@ -187,6 +188,30 @@ RSpec.describe "shaolin-http integration" do
       # cleared between requests — no leak when the header is absent
       session.get("/whoami")
       expect(JSON.parse(session.last_response.body)).to eq("project_id" => nil)
+    end
+  end
+
+  it "serves the OpenAPI doc at /openapi.json and Swagger UI at /swagger when swagger: true" do
+    build_and_boot(swagger: true) do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+
+      session.get("/openapi.json")
+      expect(session.last_response.status).to eq(200)
+      doc = JSON.parse(session.last_response.body)
+      expect(doc["openapi"]).to eq("3.1.0")
+      expect(doc["paths"]).to have_key("/users/{id}")
+
+      session.get("/swagger")
+      expect(session.last_response.status).to eq(200)
+      expect(session.last_response.body).to include("swagger-ui", "/openapi.json")
+    end
+  end
+
+  it "does not expose /openapi.json or /swagger by default" do
+    build_and_boot do |rack_app|
+      session = Rack::Test::Session.new(rack_app)
+      session.get("/openapi.json")
+      expect(session.last_response.status).to eq(404)
     end
   end
 

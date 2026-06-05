@@ -2,14 +2,15 @@ require "prism"
 require "json"
 
 module Shaolin
-  module CLI
+  module HTTP
     # Builds an OpenAPI 3.1 document from a BOOTED app: paths/methods/params from
     # each controller's route_set, request-body schemas from the DTO each action
     # validates (linked by a static scan of the controller for `SomeDTO.validate`,
     # then dry-schema's :json_schema extension), and the standard status codes +
     # error schema from shaolin's Result→HTTP contract. Response bodies are left
-    # generic in v1. OpenAPI 3.1 is used because it aligns with JSON Schema, so the
-    # DTO schemas drop in directly.
+    # generic in v1. OpenAPI 3.1 aligns with JSON Schema, so DTO schemas drop in.
+    # Lives in shaolin-http so the :http provider can serve it at /swagger; the
+    # CLI's `shaolin openapi` reuses it.
     module OpenAPI
       ERROR_SCHEMA = {
         "type" => "object",

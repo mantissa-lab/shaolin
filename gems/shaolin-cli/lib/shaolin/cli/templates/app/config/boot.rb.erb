@@ -23,7 +23,8 @@ module <%= @app_class %>
     # boots are cheap.
     Shaolin::AR.register_provider!(config: DATABASE, auto_schema: !PRODUCTION)
     Shaolin::CQRS.register_provider!
-    Shaolin::HTTP.register_provider!
+    # Swagger UI at /swagger (+ /openapi.json) in dev; off in production by default.
+    Shaolin::HTTP.register_provider!(swagger: !PRODUCTION, modules_dir: File.join(ROOT, "app/modules"))
     app = Shaolin::App.new(root: ROOT).boot!
     # Read-model migrations: automatic in dev for a zero-step start; in production
     # run them explicitly via `shaolin migrate`, not on every pod boot.

@@ -124,6 +124,10 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   + the shared `Error` schema from the Result→HTTP contract. OpenAPI 3.1 aligns with JSON Schema, so DTO
   schemas drop in directly; paths are correctly templatized (the gap rspec-openapi couldn't fill without
   Rails). Response bodies are generic in v1.
+- **Served live**: `Shaolin::HTTP.register_provider!(swagger: true)` serves the spec at `GET /openapi.json`
+  and interactive **Swagger UI at `GET /swagger`** (generated at boot). Generated apps enable it in dev
+  (`!production`) out of the box; off by default in production. The generator lives in `shaolin-http`
+  (`Shaolin::HTTP::OpenAPI`); the `shaolin openapi` CLI reuses it.
 
 ### Agent-review papercuts (round 2)
 

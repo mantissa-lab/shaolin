@@ -1,12 +1,11 @@
 require "shaolin/cli"
-require "shaolin/cli/open_api"
 require "shaolin/core"
 require "shaolin/cqrs"
 require "shaolin/activerecord"
 require "shaolin/http"
 require "tmpdir"
 
-RSpec.describe Shaolin::CLI::OpenAPI do
+RSpec.describe Shaolin::HTTP::OpenAPI do
   DB_CONFIG = {
     adapter: "postgresql", database: ENV.fetch("DB_NAME", "shaolin_test"),
     username: ENV.fetch("DB_USER", "postgres"), password: ENV["PGPASSWORD"],

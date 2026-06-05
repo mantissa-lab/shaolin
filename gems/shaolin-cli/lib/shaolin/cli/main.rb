@@ -193,9 +193,9 @@ module Shaolin
       method_option :out, type: :string, desc: "write to a file (default: stdout)"
       def openapi
         boot_app!
-        require_relative "open_api"
+        require "shaolin/http"
         require "json"
-        doc = OpenAPI.generate(Shaolin::Kernel["kernel.containers"], File.join(Dir.pwd, "app/modules"))
+        doc = Shaolin::HTTP::OpenAPI.generate(Shaolin::Kernel["kernel.containers"], File.join(Dir.pwd, "app/modules"))
         json = JSON.pretty_generate(doc)
         if options[:out]
           File.write(options[:out], json)
