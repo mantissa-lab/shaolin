@@ -1,23 +1,11 @@
 source "https://rubygems.org"
 
-# shaolin framework (local path build — the gems are not published yet).
-# `gem "shaolin"` is the umbrella; with path gems Bundler does NOT resolve its
-# dependencies as paths automatically, so every sub-gem is also listed by path.
-# (Once the gems are published, the non-local Gemfile is just `gem "shaolin"`.)
-gem "shaolin",              path: "<%= @local_path %>/gems/shaolin"
-gem "shaolin-core",         path: "<%= @local_path %>/gems/shaolin-core"
-gem "shaolin-cqrs",         path: "<%= @local_path %>/gems/shaolin-cqrs"
-gem "shaolin-activerecord", path: "<%= @local_path %>/gems/shaolin-activerecord"
-gem "shaolin-dto",          path: "<%= @local_path %>/gems/shaolin-dto"
-gem "shaolin-http",         path: "<%= @local_path %>/gems/shaolin-http"
-gem "shaolin-server",       path: "<%= @local_path %>/gems/shaolin-server"
-gem "shaolin-cli",          path: "<%= @local_path %>/gems/shaolin-cli"
-gem "shaolin-messaging",    path: "<%= @local_path %>/gems/shaolin-messaging"
-gem "shaolin-jobs",         path: "<%= @local_path %>/gems/shaolin-jobs"
-gem "shaolin-rabbitmq",     path: "<%= @local_path %>/gems/shaolin-rabbitmq"
-gem "shaolin-redis",        path: "<%= @local_path %>/gems/shaolin-redis"
-gem "shaolin-llm",          path: "<%= @local_path %>/gems/shaolin-llm"
-gem "shaolin-harness",      path: "<%= @local_path %>/gems/shaolin-harness"
+# shaolin framework (local path build — the gems are not published yet). The
+# `glob:` option points Bundler at every gemspec in the checkout, so the single
+# umbrella `gem "shaolin"` resolves all of its sub-gems straight from the path —
+# no need to list each one. (A published consumer's Gemfile is just `gem
+# "shaolin"`; a private build can use `git: "<repo>", glob: "gems/*/*.gemspec"`.)
+gem "shaolin", path: "<%= @local_path %>", glob: "gems/*/*.gemspec"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
