@@ -1,8 +1,4 @@
-require "shaolin/core"
-require "shaolin/cqrs"
-require "shaolin/activerecord"
-require "shaolin/dto"
-require "shaolin/http"
+require "shaolin" # umbrella: loads the whole framework (core, cqrs, activerecord, dto, http, server, jobs, …)
 
 module <%= @app_class %>
   ROOT = File.expand_path("..", __dir__)

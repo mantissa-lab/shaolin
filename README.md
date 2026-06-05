@@ -4,7 +4,8 @@ A standalone, modular **CQRS / Event-Sourcing** backend framework for Ruby. Not 
 Rails-ecosystem gems (ActiveRecord first) work out of the box. Every entity is a self-contained
 folder you can hand to its own agent. Built to be **LLM-operable** end to end.
 
-> Status: working. 7 gems, 73 tests green, a demo app proven on PostgreSQL + Falcon.
+> Status: working. 14 gems (one umbrella `shaolin` + 13 components), 226 tests green, a demo app
+> proven on PostgreSQL + Falcon.
 
 ## Why
 
@@ -49,16 +50,25 @@ Write and read are fully separated (CQRS); state is rebuilt by replaying events 
 
 ## Gems
 
+One umbrella gem pulls the whole stack — an app's `Gemfile` is just `gem "shaolin"` and boot is a single
+`require "shaolin"`:
+
 | Gem | Responsibility |
 |---|---|
+| **`shaolin`** | **umbrella — depends on + `require`s everything below; ships the `shaolin` CLI** |
 | `shaolin-core` | kernel: module registry, DI (dry-system), boot lifecycle, isolation |
 | `shaolin-cqrs` | command/query buses, aggregates, projections, event store wiring |
-| `shaolin-activerecord` | event-store backend + read models + migrations |
+| `shaolin-activerecord` | event-store backend + read models + migrations (with drift detection) |
 | `shaolin-dto` | boundary validation + typed value objects |
-| `shaolin-http` | controllers → commands/queries; Rack app (hanami-router) |
+| `shaolin-http` | controllers → commands/queries; Rack app (hanami-router) + OpenAPI/Swagger |
 | `shaolin-server` | Falcon/Puma adapters + graceful shutdown |
 | `shaolin-cli` | `shaolin new` / `g module` generators + runners + `lint`/`graph`/`describe` |
 | `shaolin-messaging` | transport-agnostic integration-event ports (Kafka adapter deferred) |
+| `shaolin-jobs` | transactional outbox, worker, scheduler, cross-module reactors |
+| `shaolin-redis` | Redis cache, KV store, and Streams/Pub-Sub broker |
+| `shaolin-rabbitmq` | RabbitMQ integration-event broker |
+| `shaolin-llm` | provider-agnostic LLM chat + realtime/audio substrate (OpenAI adapter) |
+| `shaolin-harness` | event-sourced LLM harness: gate state machine + durable/sync runners |
 
 ## Develop the framework
 

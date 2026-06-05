@@ -1,6 +1,10 @@
 source "https://rubygems.org"
 
-# shaolin framework (local path build — the gems are not published yet)
+# shaolin framework (local path build — the gems are not published yet).
+# `gem "shaolin"` is the umbrella; with path gems Bundler does NOT resolve its
+# dependencies as paths automatically, so every sub-gem is also listed by path.
+# (Once the gems are published, the non-local Gemfile is just `gem "shaolin"`.)
+gem "shaolin",              path: "<%= @local_path %>/gems/shaolin"
 gem "shaolin-core",         path: "<%= @local_path %>/gems/shaolin-core"
 gem "shaolin-cqrs",         path: "<%= @local_path %>/gems/shaolin-cqrs"
 gem "shaolin-activerecord", path: "<%= @local_path %>/gems/shaolin-activerecord"
@@ -10,9 +14,10 @@ gem "shaolin-server",       path: "<%= @local_path %>/gems/shaolin-server"
 gem "shaolin-cli",          path: "<%= @local_path %>/gems/shaolin-cli"
 gem "shaolin-messaging",    path: "<%= @local_path %>/gems/shaolin-messaging"
 gem "shaolin-jobs",         path: "<%= @local_path %>/gems/shaolin-jobs"
-# Optional transports / Redis (uncomment what you need):
-# gem "shaolin-rabbitmq",   path: "<%= @local_path %>/gems/shaolin-rabbitmq"
-# gem "shaolin-redis",      path: "<%= @local_path %>/gems/shaolin-redis"
+gem "shaolin-rabbitmq",     path: "<%= @local_path %>/gems/shaolin-rabbitmq"
+gem "shaolin-redis",        path: "<%= @local_path %>/gems/shaolin-redis"
+gem "shaolin-llm",          path: "<%= @local_path %>/gems/shaolin-llm"
+gem "shaolin-harness",      path: "<%= @local_path %>/gems/shaolin-harness"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
