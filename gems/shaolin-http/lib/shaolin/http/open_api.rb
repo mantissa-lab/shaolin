@@ -37,7 +37,7 @@ module Shaolin
             action_dtos = scan_action_dtos(modules_dir, module_name)
 
             controller.class.route_set.each do |route|
-              op = operation(route, action_dtos, namespace, schemas)
+              op = operation(route, action_dtos, namespace, module_name.to_s, schemas)
               (paths[openapi_path(route[:path])] ||= {})[route[:method].to_s] = op
             end
           end
@@ -61,11 +61,12 @@ module Shaolin
         mapping
       end
 
-      def operation(route, action_dtos, namespace, schemas)
+      def operation(route, action_dtos, namespace, module_name, schemas)
         action = route[:action].to_s
-        op = { "operationId" => "#{namespace}_#{action}", "parameters" => path_params(route[:path]) }
+        op = { "operationId" => "#{namespace}_#{action}", "tags" => [module_name],
+               "parameters" => path_params(route[:path]) }
         op.delete("parameters") if op["parameters"].empty?
-        op["responses"] = { "200" => { "description" => "OK" } }
+        op["responses"] = build_responses(route[:response], schemas)
 
         dto_const = action_dtos[action]
         if dto_const && %w[post put patch].include?(route[:method].to_s)
@@ -75,14 +76,38 @@ module Shaolin
               "required" => true,
               "content" => { "application/json" => { "schema" => { "$ref" => "#/components/schemas/#{schema_name}" } } }
             }
-            op["responses"]["422"] = error_response("validation failed")
+            op["responses"]["422"] ||= error_response("validation failed")
           end
         end
         op
       end
 
+      # `response:` on the route → responses. A DTO class means 200; a
+      # { status => DTO } hash documents several. A DTO/view is anything with
+      # `.schema.json_schema` (e.g. a Shaolin::DTO). Nil → generic 200.
+      def build_responses(spec, schemas)
+        return { "200" => { "description" => "OK" } } if spec.nil?
+
+        mapping = spec.is_a?(Hash) ? spec : { 200 => spec }
+        mapping.each_with_object({}) do |(status, dto), out|
+          resp = { "description" => "OK" }
+          name = register_schema(dto, schemas) if dto
+          if name
+            resp["content"] = { "application/json" => { "schema" => { "$ref" => "#/components/schemas/#{name}" } } }
+          end
+          out[status.to_s] = resp
+        end
+      end
+
       def register_dto(dto_const, namespace, schemas)
         klass = resolve(dto_const, namespace) or return nil
+
+        register_schema(klass, schemas)
+      end
+
+      # Register a DTO/view class's JSON Schema as a named component, return its name.
+      def register_schema(klass, schemas)
+        return nil unless klass.respond_to?(:schema)
 
         name = klass.name.split("::").last
         # dry-schema's json_schema returns symbol keys; stringify (JSON round-trip)

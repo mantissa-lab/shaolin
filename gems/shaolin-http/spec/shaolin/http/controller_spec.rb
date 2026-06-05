@@ -30,8 +30,8 @@ RSpec.describe Shaolin::HTTP::Controller do
 
   it "collects declared routes" do
     expect(DemoController.route_set).to include(
-      { method: :get, path: "/things/:id", action: :show },
-      { method: :post, path: "/things", action: :create }
+      a_hash_including(method: :get, path: "/things/:id", action: :show),
+      a_hash_including(method: :post, path: "/things", action: :create)
     )
   end
 
