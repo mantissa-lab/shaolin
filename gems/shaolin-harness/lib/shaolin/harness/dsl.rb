@@ -33,8 +33,8 @@ module Shaolin
 
       # `to:` (optional) declares the possible next gates for describe/graph; the
       # actual transition is whatever the gate's on_result calls at runtime.
-      def gate(name, entry: false, terminal: false, await: false, to: [], &block)
-        builder = GateBuilder.new(name, entry, terminal, Array(to).map(&:to_s), await: await)
+      def gate(name, entry: false, terminal: false, await: false, reply: nil, to: [], &block)
+        builder = GateBuilder.new(name, entry, terminal, Array(to).map(&:to_s), await: await, reply: reply)
         builder.instance_eval(&block) if block
         gates[name.to_s] = builder.build
       end

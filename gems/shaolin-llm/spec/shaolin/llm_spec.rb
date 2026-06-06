@@ -90,6 +90,26 @@ RSpec.describe Shaolin::LLM do
       expect(result.reasoning).to be_nil
     end
 
+    it "passes response_format through and parses structured output onto Completion#data" do
+      seen = nil
+      transport = lambda do |_path, body|
+        seen = body
+        { "choices" => [{ "message" => { "content" => '{"verdict":"unsafe","reason":"abuse"}' } }] }
+      end
+      rf = { type: "json_schema", json_schema: { name: "verdict" } }
+      result = described_class.new(api_key: "t", transport: transport).complete(messages: [], response_format: rf)
+
+      expect(seen[:response_format]).to eq(rf)
+      expect(result.data).to eq(verdict: "unsafe", reason: "abuse")
+      expect(result.data?).to be(true)
+    end
+
+    it "leaves data nil when no response_format is requested (default)" do
+      transport = ->(_p, _b) { { "choices" => [{ "message" => { "content" => "{\"x\":1}" } }] } }
+      result = described_class.new(api_key: "t", transport: transport).complete(messages: [])
+      expect(result.data).to be_nil
+    end
+
     it "completes against the live API when OPENAI_API_KEY is set", :live do
       skip "set OPENAI_API_KEY to run the live OpenAI test" unless ENV["OPENAI_API_KEY"]
 

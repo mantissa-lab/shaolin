@@ -24,8 +24,8 @@ module Shaolin
         @calls = []
       end
 
-      def complete(messages:, tools: [], model: nil)
-        @calls << { messages: messages, tools: tools, model: model }
+      def complete(messages:, tools: [], model: nil, response_format: nil)
+        @calls << { messages: messages, tools: tools, model: model, response_format: response_format }
         response = @responses.shift
         raise "InMemory LLM: no scripted response left (call ##{@calls.size})" unless response
 

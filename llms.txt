@@ -191,6 +191,10 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   `reasoning_content`/`reasoning` field automatically, or lifted out of an inline `<think>…</think>`
   block when you opt in with `OpenAI.new(reasoning_tag: "think")` (off by default; for Qwen-style
   models). `text` stays clean; the harness persists `reasoning` in its `Responded` event.
+  **Structured output:** pass `response_format:` (`{type:"json_schema",json_schema:{…}}` / `json_object`)
+  to `complete` → parsed object on `Completion#data` (symbol keys; nil unless requested). For
+  classification/decision gates, cleaner than a pseudo-tool — a gate declares `response_format { … }` and
+  `on_result` reads `out.data`.
 - `shaolin-harness`: subclass `Shaolin::Harness`; declare `gate :name, entry:/terminal: do prompt {…};
   tools name: CommandClass; on_result { |out, run| run.transition_to(:next) / run.complete(...) } end`.
   **Tools are commands on the command bus.** Each step (prompt/response/tool/transition) is a domain
@@ -211,7 +215,9 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   true` (resting state), and optional `on_turn`. Drive with `MyConvo.session(id:, llm:, repo:,
   command_bus:).receive(message)` → reply; state updates ride tools=commands + on_result/on_turn (no
   reply-parsing). A turn is itself an autonomous mini-run that ends by resting at the await gate, so both
-  modes compose in one event-sourced run. Example: `examples/conversation`.
+  modes compose in one event-sourced run. **Canned gates** reply with fixed text and make NO LLM call —
+  `gate :refuse, reply: "…"` (or `reply { |run| … }`) — for refusals/nudges/scripted lines (zero tokens).
+  Example: `examples/conversation`.
 - **Realtime/audio (provider-agnostic)**: `Shaolin::LLM::Realtime` — normalized session events
   (`session_started`/`transcript_delta`/`audio_delta`/`tool_call`/`turn_completed`/...), `Audio` (PCM16/
   base64/framing), a `Session`/`Client` port (`send_audio`/`send_text`/`commit`/`tool_result`/`close` +
