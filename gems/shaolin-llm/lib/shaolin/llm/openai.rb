@@ -28,11 +28,12 @@ module Shaolin
         @reasoning_tag = reasoning_tag
       end
 
-      def complete(messages:, tools: [], model: nil)
+      def complete(messages:, tools: [], model: nil, response_format: nil)
         body = { model: model || @model, messages: messages }
         unless tools.empty?
           body[:tools] = tools.map { |t| { type: "function", function: t } }
         end
+        body[:response_format] = response_format if response_format
 
         response = post("/chat/completions", body)
         message = response.dig("choices", 0, "message") || {}
@@ -41,11 +42,22 @@ module Shaolin
           text: text,
           reasoning: reasoning,
           tool_calls: parse_tool_calls(message["tool_calls"]),
-          usage: response["usage"] || {}
+          usage: response["usage"] || {},
+          data: (parse_structured(text) if response_format)
         )
       end
 
       private
+
+      # A structured-output request returns the JSON object as the message content;
+      # parse it (symbol keys) onto Completion#data. nil if it isn't valid JSON.
+      def parse_structured(content)
+        return nil if content.nil? || content.empty?
+
+        JSON.parse(content, symbolize_names: true)
+      rescue JSON::ParserError
+        nil
+      end
 
       # Returns [clean_text, reasoning]. A provider-supplied reasoning field wins
       # (content is already clean); otherwise, if a reasoning_tag is configured,

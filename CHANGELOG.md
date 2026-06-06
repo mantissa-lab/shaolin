@@ -9,6 +9,19 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Structured output (issue #4) + canned-reply gates (issue #3)
+
+- **Structured output** — `Shaolin::LLM::Client#complete(…, response_format:)` passes OpenAI's
+  `response_format` (`json_object` / `json_schema`) through; the parsed object surfaces on
+  `Completion#data` (symbol keys; nil unless requested). Harness gates can declare it —
+  `response_format { … }` — for classification/decision gates that want a typed verdict
+  (`on_result { |out, run| … out.data[:verdict] … }`) instead of a pseudo-tool or free-text parsing.
+  `Responded` events persist `data`; `InMemory` scripts carry `data:`.
+- **Canned-reply gates** — `gate :refuse, reply: "…"` (or `reply { |run| … }`) emits fixed text as the
+  turn's reply with **no LLM call** (refusals, nudges, scripted onboarding) — deterministic, zero
+  tokens/latency. Tools/transitions still run via `on_result`. `examples/conversation`'s refuse gate is
+  now canned.
+
 ### Conversational mode for harnesses — `Shaolin::Conversation` (issue #2)
 
 - Harness generalized from "autonomous run-to-terminal" into **a state machine over LLM steps with two

@@ -46,21 +46,21 @@ class Companion < Shaolin::Conversation
     end
   end
 
-  gate :refuse, to: %i[awaiting_user] do
-    prompt { "I can't help with that — but I'm here if you want to talk about something else." }
+  gate :refuse, reply: "I can't help with that — but I'm here if you want to talk about something else.",
+       to: %i[awaiting_user] do # canned: fixed text, NO LLM call (issue #3)
     on_result { |_out, run| run.transition_to(:awaiting_user) }
   end
 
   gate :awaiting_user, await: true                          # the resting state between turns
 end
 
-# Deterministic script: each turn = [safety verdict, responder output]. Note the
-# refuse gate also calls the LLM (its prompt is the model's INPUT), so every turn
-# consumes two completions.
+# Deterministic script: each turn = [safety verdict, responder output]. The
+# refused turn (#3) consumes only the safety verdict — the canned refuse gate
+# makes no LLM call.
 llm = Shaolin::LLM::InMemory.new(
   Shaolin::LLM::Completion.new(text: "safe"),   Shaolin::LLM::Completion.new(text: "Hey! Glad you're here 😊"),             # turn 1
   Shaolin::LLM::Completion.new(text: "safe"),   Shaolin::LLM::Completion.new(text: "Want to try premium?", tool_calls: [{ name: "record_offer", arguments: {} }]), # turn 2 (offer)
-  Shaolin::LLM::Completion.new(text: "unsafe"), Shaolin::LLM::Completion.new(text: "I can't help with that, but I'm here."), # turn 3 (refused)
+  Shaolin::LLM::Completion.new(text: "unsafe"),                                                                              # turn 3 (refused — canned, no responder call)
   Shaolin::LLM::Completion.new(text: "safe"),   Shaolin::LLM::Completion.new(text: "Still here for you.")                    # turn 4
 )
 

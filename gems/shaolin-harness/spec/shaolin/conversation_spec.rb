@@ -39,7 +39,7 @@ class CompanionConvo < Shaolin::Conversation
 end
 
 RSpec.describe Shaolin::Conversation do
-  def boot!(llm)
+  def boot!(llm, convo: CompanionConvo)
     Shaolin::Provider.reset!
     Shaolin::Kernel.reset!
     PgTest.reset_schema!
@@ -49,7 +49,7 @@ RSpec.describe Shaolin::Conversation do
     Shaolin::Provider.start_all
     bus = Shaolin::Kernel["cqrs.command_bus"]
     bus.register(Upgrade, ->(_cmd) { :upgraded })
-    CompanionConvo.session(
+    convo.session(
       id: Shaolin::Id.generate, llm: Shaolin::Kernel["llm.client"],
       repo: Shaolin::Kernel["cqrs.aggregate_repository"], command_bus: bus
     )
@@ -101,6 +101,46 @@ RSpec.describe Shaolin::Conversation do
     expect(reply).to eq("ignored — refuse gate has a fixed prompt")
     expect(session.awaiting?).to be(true)
     expect(session.run.terminal?).to be(false)
+  end
+
+  # A conversation using a STRUCTURED safety verdict (#4) and a CANNED refuse
+  # gate (#3, no LLM call).
+  class GatedConvo < Shaolin::Conversation
+    harness_name "gated_convo"
+    llm model: "stub"
+    context { |_run| "be brief" }
+
+    gate :safety, entry: true, to: %i[respond refuse] do
+      prompt { |run| "classify: #{run.recent(1).last[:content]}" }
+      response_format { { type: "json_schema", json_schema: { name: "verdict" } } }
+      on_result { |out, run| run.transition_to(out.data[:verdict] == "unsafe" ? :refuse : :respond) }
+    end
+    gate :respond, to: %i[awaiting_user] do
+      on_result { |_out, run| run.transition_to(:awaiting_user) }
+    end
+    gate :refuse, reply: "I can't help with that.", to: %i[awaiting_user] do
+      on_result { |_out, run| run.transition_to(:awaiting_user) }
+    end
+    gate :awaiting_user, await: true
+  end
+
+  it "#4 a structured verdict (Completion#data) drives the branch; response_format is sent" do
+    llm = Shaolin::LLM::InMemory.new(
+      Shaolin::LLM::Completion.new(data: { verdict: "safe" }), Shaolin::LLM::Completion.new(text: "Sure!")
+    )
+    session = boot!(llm, convo: GatedConvo)
+
+    expect(session.receive("hello")).to eq("Sure!")
+    expect(llm.calls.first[:response_format]).to eq(type: "json_schema", json_schema: { name: "verdict" })
+  end
+
+  it "#3 a canned gate replies with fixed text and makes NO LLM call" do
+    llm = Shaolin::LLM::InMemory.new(Shaolin::LLM::Completion.new(data: { verdict: "unsafe" }))
+    session = boot!(llm, convo: GatedConvo)
+
+    expect(session.receive("do bad")).to eq("I can't help with that.")
+    expect(llm.calls.size).to eq(1) # only the safety classify; the refuse gate called no model
+    expect(session.history.last).to eq(role: "assistant", content: "I can't help with that.")
   end
 
   describe "strict funnel stages (Run aggregate)" do

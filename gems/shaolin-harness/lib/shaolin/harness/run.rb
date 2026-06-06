@@ -59,7 +59,7 @@ module Shaolin
       def responded(gate, completion)
         apply(Events::Responded.new(data: {
           gate: gate.to_s, text: completion.text, reasoning: completion.reasoning,
-          tool_calls: completion.tool_calls, usage: completion.usage
+          tool_calls: completion.tool_calls, usage: completion.usage, data: completion.data
         }))
       end
 

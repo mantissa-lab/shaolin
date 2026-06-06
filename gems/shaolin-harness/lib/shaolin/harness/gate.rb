@@ -4,24 +4,30 @@ module Shaolin
     # to commands) it may call, and what to do with the model's result.
     # `transitions` are the DECLARED possible next gates (`to:`), used only for
     # describe/graph — the runtime transition is still whatever `on_result` calls.
-    Gate = Struct.new(:name, :entry, :terminal, :await, :prompt, :tools, :on_result, :transitions, keyword_init: true) do
+    Gate = Struct.new(:name, :entry, :terminal, :await, :prompt, :reply, :response_format,
+                      :tools, :on_result, :transitions, keyword_init: true) do
       def tool_names = (tools || {}).keys
       def transition_names = (transitions || []).map(&:to_s)
       # A resting state for human-paced conversation: the run parks here between
       # turns. Non-terminal, but `advance` does no work until the next inbound
       # message wakes it (so a conversation never self-perpetuates).
       def await? = !!await
+      # A canned gate replies with fixed text and makes NO LLM call (refusals,
+      # nudges, scripted onboarding) — deterministic, zero tokens/latency.
+      def canned? = !reply.nil?
     end
 
     # Block DSL collected inside `gate :name do ... end`.
     class GateBuilder
-      def initialize(name, entry, terminal, transitions = [], await: false)
+      def initialize(name, entry, terminal, transitions = [], await: false, reply: nil)
         @name = name.to_s
         @entry = entry
         @terminal = terminal
         @transitions = transitions
         @await = await
         @prompt = nil
+        @reply = reply
+        @response_format = nil
         @tools = {}
         @on_result = nil
       end
@@ -30,6 +36,18 @@ module Shaolin
       # or return an array of {role:, content:} messages).
       def prompt(value = nil, &block)
         @prompt = block || value
+      end
+
+      # Canned reply (no LLM call): reply("text") or reply { |run| "..." }.
+      def reply(value = nil, &block)
+        @reply = block || value
+      end
+
+      # Structured output for classification/decision gates: response_format(hash)
+      # or response_format { |run| ... } — passed to the LLM; the parsed object
+      # arrives on `out.data` in on_result.
+      def response_format(value = nil, &block)
+        @response_format = block || value
       end
 
       # tools(lookup: LookupAccount, place: PlaceOrder) — name the model sees =>
@@ -44,7 +62,8 @@ module Shaolin
 
       def build
         Gate.new(name: @name, entry: @entry, terminal: @terminal, await: @await,
-                 prompt: @prompt, tools: @tools, on_result: @on_result, transitions: @transitions)
+                 prompt: @prompt, reply: @reply, response_format: @response_format,
+                 tools: @tools, on_result: @on_result, transitions: @transitions)
       end
     end
   end

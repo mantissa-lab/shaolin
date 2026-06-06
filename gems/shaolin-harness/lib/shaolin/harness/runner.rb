@@ -1,4 +1,5 @@
 require "shaolin/id"
+require "shaolin/llm"
 require_relative "run"
 
 module Shaolin
@@ -44,9 +45,11 @@ module Shaolin
 
         gate = @harness.gate_for(run.current_gate)
         return run if gate.await?
+        return advance_canned(id, gate, run) if gate.canned?
 
         prompt = build_prompt(gate, run)
-        completion = @llm.complete(messages: to_messages(prompt), tools: tool_schemas(gate))
+        completion = @llm.complete(messages: to_messages(prompt), tools: tool_schemas(gate),
+                                   response_format: build_response_format(gate, run))
         tool_results = run_tools(gate, completion)
 
         @repo.unit_of_work(Run.new(id)) do |fresh|
@@ -57,6 +60,19 @@ module Shaolin
             fresh.tool_returned(gate.name, name, result)
           end
           gate.on_result.call(completion, fresh)
+        end
+        load(id)
+      end
+
+      # A canned gate: emit fixed text as the reply with NO LLM call. Records a
+      # synthetic Responded so it flows into history/finish_turn like any gate;
+      # tools/transitions still run via on_result.
+      def advance_canned(id, gate, run)
+        text = gate.reply.respond_to?(:call) ? gate.reply.call(run) : gate.reply
+        completion = Shaolin::LLM::Completion.new(text: text)
+        @repo.unit_of_work(Run.new(id)) do |fresh|
+          fresh.responded(gate.name, completion)
+          gate.on_result&.call(completion, fresh)
         end
         load(id)
       end
@@ -121,6 +137,11 @@ module Shaolin
         return @harness.context_for(run) if @harness.respond_to?(:context_for)
 
         raise Shaolin::Error, "gate #{gate.name.inspect} has no prompt and #{@harness} has no conversational context"
+      end
+
+      def build_response_format(gate, run)
+        rf = gate.response_format
+        rf.respond_to?(:call) ? rf.call(run) : rf
       end
 
       def to_messages(prompt)
