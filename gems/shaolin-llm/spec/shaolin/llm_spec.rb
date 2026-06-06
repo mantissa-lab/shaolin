@@ -18,6 +18,15 @@ RSpec.describe Shaolin::LLM do
       expect(llm.calls.last[:tools]).to eq([{ name: "lookup" }])
     end
 
+    it "carries reasoning on scripted completions (hash and Completion forms)" do
+      llm = described_class.new(
+        { text: "clean", reasoning: "scripted trace" },
+        Shaolin::LLM::Completion.new(text: "y", reasoning: "obj trace")
+      )
+      expect(llm.complete(messages: []).reasoning).to eq("scripted trace")
+      expect(llm.complete(messages: []).reasoning).to eq("obj trace")
+    end
+
     it "raises when the script is exhausted" do
       llm = described_class.new
       expect { llm.complete(messages: []) }.to raise_error(/no scripted response/)
@@ -51,6 +60,34 @@ RSpec.describe Shaolin::LLM do
       expect(result.text).to eq("hello")
       expect(result.tool_calls).to eq([{ name: "lookup_account", arguments: { id: "a1" } }])
       expect(result.usage["completion_tokens"]).to eq(3)
+    end
+
+    it "maps a separate reasoning_content field into Completion#reasoning, content stays clean" do
+      transport = lambda do |_path, _body|
+        { "choices" => [{ "message" => { "content" => "Hey you 😊", "reasoning_content" => "he seems lonely" } }] }
+      end
+      result = described_class.new(api_key: "t", transport: transport).complete(messages: [])
+      expect(result.text).to eq("Hey you 😊")
+      expect(result.reasoning).to eq("he seems lonely")
+      expect(result.reasoning?).to be(true)
+    end
+
+    it "lifts an inline <think> block out of content when reasoning_tag is set (Qwen)" do
+      transport = lambda do |_path, _body|
+        { "choices" => [{ "message" => { "content" => "<think>he seems lonely, warm up</think>Hey you 😊" } }] }
+      end
+      result = described_class.new(api_key: "t", transport: transport, reasoning_tag: "think").complete(messages: [])
+      expect(result.text).to eq("Hey you 😊")
+      expect(result.reasoning).to eq("he seems lonely, warm up")
+    end
+
+    it "leaves an inline <think> block untouched when reasoning_tag is NOT set (default)" do
+      transport = lambda do |_path, _body|
+        { "choices" => [{ "message" => { "content" => "<think>x</think>Hi" } }] }
+      end
+      result = described_class.new(api_key: "t", transport: transport).complete(messages: [])
+      expect(result.text).to eq("<think>x</think>Hi")
+      expect(result.reasoning).to be_nil
     end
 
     it "completes against the live API when OPENAI_API_KEY is set", :live do

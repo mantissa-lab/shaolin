@@ -9,6 +9,17 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### LLM reasoning is first-class on `Completion` (issue #1)
+
+- `Shaolin::LLM::Completion` gains a **`reasoning`** field (+ `reasoning?`) alongside `text`/
+  `tool_calls`/`usage`. `Shaolin::LLM::OpenAI#complete` maps a provider's `reasoning_content` (or
+  `reasoning`) field into it automatically, and — **opt-in** via `OpenAI.new(reasoning_tag: "think")`
+  — lifts an inline `<think>…</think>` block out of the content into `reasoning`, leaving `text`
+  clean (for Qwen-style models that emit reasoning inline). Off by default, so other providers are
+  unaffected. `InMemory` scripted completions can carry `reasoning` for deterministic harness tests.
+  The harness `Responded` event now persists `reasoning`, so the model's thinking is auditable/
+  replayable in the run's event log while only clean `text` is shown to users.
+
 ### Umbrella gem: `gem "shaolin"` + `require "shaolin"`
 
 - New meta-gem **`shaolin`** (like the `rails` gem) depends on the whole stack and `require "shaolin"`
