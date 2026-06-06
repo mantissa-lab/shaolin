@@ -203,6 +203,15 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   visualization). Harnesses live in `app/harnesses/**`; `shaolin describe --json` lists them
   (gates/tools/model/edges) and `shaolin graph` draws the gate graph. Test with `Shaolin::LLM::InMemory`
   for deterministic replay (no network).
+- **Two modes, one engine.** A harness is a state machine over LLM steps. *Autonomous* (above): input
+  fixed at start, runs to a terminal gate. *Conversational* (`Shaolin::Conversation < Shaolin::Harness`):
+  a human message per turn, rests at an `await` gate between turns, never terminal — for chatbots/
+  companions. Declare `stages`/`edges` (a STRICT, queryable funnel — `run.advance_to` rejects undeclared
+  jumps), `context`/`window` (persona + recent-window memory the prompt builder reads), `gate :x, await:
+  true` (resting state), and optional `on_turn`. Drive with `MyConvo.session(id:, llm:, repo:,
+  command_bus:).receive(message)` → reply; state updates ride tools=commands + on_result/on_turn (no
+  reply-parsing). A turn is itself an autonomous mini-run that ends by resting at the await gate, so both
+  modes compose in one event-sourced run. Example: `examples/conversation`.
 - **Realtime/audio (provider-agnostic)**: `Shaolin::LLM::Realtime` — normalized session events
   (`session_started`/`transcript_delta`/`audio_delta`/`tool_call`/`turn_completed`/...), `Audio` (PCM16/
   base64/framing), a `Session`/`Client` port (`send_audio`/`send_text`/`commit`/`tool_result`/`close` +

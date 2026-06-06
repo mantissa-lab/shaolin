@@ -14,6 +14,14 @@ module Shaolin
       class Transitioned < RubyEventStore::Event; end
       class Completed    < RubyEventStore::Event; end
       class Failed       < RubyEventStore::Event; end
+
+      # Conversational mode (human-paced): an inbound human message starts a turn;
+      # Replied is the turn's user-facing reply (its assistant history entry —
+      # distinct from per-gate Responded, which is the full audit incl. internal
+      # classification gates); StageChanged advances the funnel (strict).
+      class MessageReceived < RubyEventStore::Event; end
+      class Replied         < RubyEventStore::Event; end
+      class StageChanged    < RubyEventStore::Event; end
     end
   end
 end

@@ -7,6 +7,7 @@ require_relative "harness/run"
 require_relative "harness/runner"
 require_relative "harness/registry"
 require_relative "harness/drive_reactor"
+require_relative "harness/conversation"
 
 module Shaolin
   # Base class for an LLM harness: a gate state machine, event-sourced per run

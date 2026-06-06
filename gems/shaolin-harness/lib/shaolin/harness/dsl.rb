@@ -33,9 +33,9 @@ module Shaolin
 
       # `to:` (optional) declares the possible next gates for describe/graph; the
       # actual transition is whatever the gate's on_result calls at runtime.
-      def gate(name, entry: false, terminal: false, to: [], &block)
-        builder = GateBuilder.new(name, entry, terminal, Array(to).map(&:to_s))
-        builder.instance_eval(&block)
+      def gate(name, entry: false, terminal: false, await: false, to: [], &block)
+        builder = GateBuilder.new(name, entry, terminal, Array(to).map(&:to_s), await: await)
+        builder.instance_eval(&block) if block
         gates[name.to_s] = builder.build
       end
 
@@ -49,7 +49,7 @@ module Shaolin
           name: harness_name,
           model: model,
           gates: gates.values.map do |g|
-            { name: g.name, entry: g.entry, terminal: g.terminal,
+            { name: g.name, entry: g.entry, terminal: g.terminal, await: g.await?,
               tools: g.tool_names.map(&:to_s), to: g.transition_names }
           end
         }
