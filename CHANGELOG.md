@@ -9,6 +9,23 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Conversational mode for harnesses — `Shaolin::Conversation` (issue #2)
+
+- Harness generalized from "autonomous run-to-terminal" into **a state machine over LLM steps with two
+  modes**: autonomous (input fixed at start, runs to a terminal gate, self-advancing) and **conversational**
+  (a human message per turn, rests at an `await` gate between turns, never terminal). The two compose —
+  a conversational *turn* is itself an autonomous mini-run that ends by resting at an await gate.
+- Engine deltas in `shaolin-harness`: `Runner#receive(id, input:)` (records the inbound `MessageReceived`,
+  wakes the run into the entry gate, runs the gate machine until it rests/terminates, persists the turn's
+  `Replied` reply + fires `on_turn`); `gate :name, await: true` (a non-terminal resting state — `advance`
+  is a no-op there, so a conversation never self-perpetuates); `Run` now accumulates chat `history`
+  (`recent(n)` window) and a strict funnel `stage` (`advance_to` rejects undeclared transitions).
+- New `Shaolin::Conversation` facade: `stages`/`edges` (strict, queryable funnel), `context`/`window`
+  (persona + recent-window memory the prompt builder reads), `on_turn` (deterministic per-turn updates),
+  and `Companion.session(id:, llm:, repo:, command_bus:)` → `session.receive(message)`. State updates
+  ride tools=commands + on_result/on_turn (no reply-parsing). Deterministic tests via `LLM::InMemory`;
+  `examples/conversation` mirrors a funnel companion bot.
+
 ### LLM reasoning is first-class on `Completion` (issue #1)
 
 - `Shaolin::LLM::Completion` gains a **`reasoning`** field (+ `reasoning?`) alongside `text`/
