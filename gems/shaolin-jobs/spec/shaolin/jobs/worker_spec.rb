@@ -116,6 +116,22 @@ RSpec.describe Shaolin::Jobs::Worker do
     end
   end
 
+  it "run drains on a thread pool and stops gracefully on stop!" do
+    Dir.mktmpdir do |root|
+      app = boot(root)
+      app["things"]["cqrs.command_bus"].call(CreateThing.new(id: "g1"))
+
+      worker = described_class.new(event_store: Shaolin::Kernel["cqrs.event_store"])
+      t = Thread.new { worker.run(poll_interval: 0.01, threads: 2) }
+      sleep 0.1
+      worker.stop!
+
+      expect(t.join(3)).not_to be_nil               # pool drained + terminated promptly
+      expect($worker_seen.size).to eq(1)            # the job was processed by the pool
+      expect(Shaolin::Jobs::OutboxJob.first.status).to eq("done")
+    end
+  end
+
   it "tx_per_job mode commits each job independently and respects the batch bound" do
     Dir.mktmpdir do |root|
       app = boot(root)

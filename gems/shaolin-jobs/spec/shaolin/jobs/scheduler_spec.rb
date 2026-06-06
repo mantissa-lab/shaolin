@@ -31,6 +31,18 @@ RSpec.describe Shaolin::Jobs::Scheduler do
     expect(Shaolin::Jobs::ScheduleRun.find_by(name: "bad").last_run_at).not_to be_nil
   end
 
+  it "run ticks on a TimerTask and stops gracefully on stop!" do
+    Shaolin.schedule("loop_task", every: "1s") { $sched_fired << :ran }
+
+    scheduler = described_class.new
+    t = Thread.new { scheduler.run(interval: 0.02) }
+    sleep 0.15
+    scheduler.stop!
+
+    expect(t.join(3)).not_to be_nil  # returned promptly = graceful TimerTask shutdown
+    expect($sched_fired.size).to be >= 1 # the TimerTask fired at least once
+  end
+
   it "#5 two scheduler replicas fire a due task exactly once (advisory-lock leader)" do
     Shaolin.schedule("once", every: "1h") do
       $sched_fired << :ran

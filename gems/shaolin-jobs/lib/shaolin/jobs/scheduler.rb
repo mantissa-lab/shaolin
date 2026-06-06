@@ -1,4 +1,5 @@
 require "active_record"
+require "concurrent"
 require_relative "schedules"
 require_relative "schedule_run"
 require_relative "log"
@@ -12,7 +13,8 @@ module Shaolin
 
       def initialize(schedules: Schedules)
         @schedules = schedules
-        @stop = false
+        @stop = Concurrent::AtomicBoolean.new(false)
+        @shutdown = Concurrent::Event.new
       end
 
       # Become leader (advisory lock); run due schedules; persist last_run.
@@ -28,20 +30,25 @@ module Shaolin
         end
       end
 
+      # A TimerTask ticks on a fixed interval in its own thread (a DB blip or lock
+      # error in one tick is caught, not fatal); the caller parks until a graceful
+      # SIGTERM/INT, then the task is shut down.
       def run(interval: 1.0)
         install_traps
-        until @stop
-          begin
-            tick
-          rescue StandardError => e
-            # a DB blip or lock error must not kill the scheduler loop
-            Log.emit("error", "scheduler.tick_failed", error: e.message)
-          end
-          sleep(interval)
+        task = Concurrent::TimerTask.new(execution_interval: interval, run_now: true) do
+          tick
+        rescue StandardError => e
+          Log.emit("error", "scheduler.tick_failed", error: e.message)
         end
+        task.execute
+        @shutdown.wait
+        task.shutdown
       end
 
-      def stop! = (@stop = true)
+      def stop!
+        @stop.make_true
+        @shutdown.set
+      end
 
       private
 
@@ -65,7 +72,7 @@ module Shaolin
       end
 
       def install_traps
-        %w[TERM INT].each { |sig| Signal.trap(sig) { @stop = true } }
+        %w[TERM INT].each { |sig| Signal.trap(sig) { stop! } }
       end
     end
   end

@@ -9,6 +9,16 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Worker/scheduler on concurrent-ruby (cleaner concurrency + shutdown)
+
+- `shaolin worker` now drains on a `Concurrent::FixedThreadPool` (clean `shutdown` + `wait_for_termination`
+  for graceful stop) instead of hand-managed `Thread.new`, with a `Concurrent::AtomicBoolean` stop flag,
+  and each poll wrapped so a transient DB/lock error logs and continues rather than killing the loop.
+- `shaolin scheduler` ticks via a `Concurrent::TimerTask` (built-in interval + per-tick error isolation)
+  and parks on a `Concurrent::Event` until a graceful SIGTERM/INT. `run_once`/`tick`/`stop!` behavior is
+  unchanged. `concurrent-ruby` (already transitively present via ActiveSupport) is now a direct
+  dependency of `shaolin-jobs`.
+
 ### LLM HTTP timeouts — no more dropped replies on slow reasoning models (issue #6)
 
 - `Shaolin::LLM::OpenAI.new` takes `open_timeout:` (default 15s) and `read_timeout:` (default **600s**),
