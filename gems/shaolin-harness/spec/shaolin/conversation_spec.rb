@@ -143,6 +143,54 @@ RSpec.describe Shaolin::Conversation do
     expect(session.history.last).to eq(role: "assistant", content: "I can't help with that.")
   end
 
+  describe "#5 cross-user read-side (conversations_read projection)" do
+    def boot_read_model!(llm)
+      Shaolin::Provider.reset!
+      Shaolin::Kernel.reset!
+      PgTest.reset_schema!
+      Shaolin::AR.register_provider!(config: PgTest::CONFIG)
+      Shaolin::CQRS.register_provider!
+      Shaolin::LLM.register_provider!(client: llm)
+      Shaolin::Conversation.register_read_model!
+      Shaolin::Provider.start_all
+      bus = Shaolin::Kernel["cqrs.command_bus"]
+      bus.register(Upgrade, ->(_cmd) { :ok })
+      bus
+    end
+
+    def session(id, bus)
+      CompanionConvo.session(id: id, llm: Shaolin::Kernel["llm.client"],
+                             repo: Shaolin::Kernel["cqrs.aggregate_repository"], command_bus: bus)
+    end
+
+    it "projects stage/turn_count/tags per session, queryable across users without driving the session" do
+      llm = Shaolin::LLM::InMemory.new(
+        c(text: "safe"), c(text: "Upgraded!", tool: "upgrade"), # sess-1: → stage free
+        c(text: "safe"), c(text: "Hi")                          # sess-2: → stays onboarding
+      )
+      bus = boot_read_model!(llm)
+
+      s1 = session("sess-1", bus)
+      s1.receive("hello")
+      s1.tag(geo: "DE", variant: "tripwire")
+      session("sess-2", bus).receive("hello")
+
+      reader = Shaolin::Kernel["conversations.read"] # any module reads this, isn't the driver
+
+      row = reader.find("sess-1")
+      expect(row.stage).to eq("free")
+      expect(row.turn_count).to eq(1)
+      expect(row.tags).to include("geo" => "DE", "variant" => "tripwire")
+      expect(row.last_turn_at).not_to be_nil
+
+      expect(reader.in_stage("free").pluck(:session_id)).to eq(["sess-1"])
+      expect(reader.in_stage("onboarding").pluck(:session_id)).to eq(["sess-2"])
+      expect(reader.with_min_turns(1).count).to eq(2)
+      expect(reader.query(stage: "free", tags: { geo: "DE" }).pluck(:session_id)).to eq(["sess-1"])
+      expect(reader.query(stage: "free", tags: { geo: "FR" }).count).to eq(0)
+    end
+  end
+
   describe "strict funnel stages (Run aggregate)" do
     it "allows a declared transition and rejects an undeclared jump" do
       run = Shaolin::Harness::Run.new("conv-1")

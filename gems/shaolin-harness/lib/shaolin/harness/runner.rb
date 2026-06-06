@@ -106,6 +106,12 @@ module Shaolin
         @harness.gate_for(run.current_gate).await?
       end
 
+      # Stamp app dimensions onto a session (outside a turn — e.g. entry profile).
+      def tag(id, attrs)
+        @repo.unit_of_work(Run.new(id)) { |fresh| fresh.tag(attrs) }
+        load(id)
+      end
+
       # Synchronous: run from start to a terminal gate (or a resting await gate) in
       # this process. Autonomous harnesses reach a terminal; conversational ones
       # rest at await (use #receive to drive those turn-by-turn).
@@ -129,6 +135,10 @@ module Shaolin
         @repo.unit_of_work(Run.new(id)) do |fresh|
           fresh.replied(reply)
           @harness.on_turn.call(reply, fresh) if @harness.respond_to?(:on_turn) && @harness.on_turn
+          if @harness.respond_to?(:tags) && @harness.tags
+            attrs = @harness.tags.call(fresh)
+            fresh.tag(attrs) if attrs
+          end
         end
       end
 

@@ -67,16 +67,19 @@ llm = Shaolin::LLM::InMemory.new(
 Shaolin::AR.register_provider!(config: DB)
 Shaolin::CQRS.register_provider!
 Shaolin::LLM.register_provider!(client: llm)
+Shaolin::Conversation.register_read_model! # opt-in cross-user projection (issue #5)
 Shaolin::Provider.start_all
 
 bus = Shaolin::Kernel["cqrs.command_bus"]
 offers = []
 bus.register(RecordOffer, ->(_cmd) { offers << :offered })
 
+sid = Shaolin::Id.generate
 session = Companion.session(
-  id: Shaolin::Id.generate, llm: Shaolin::Kernel["llm.client"],
+  id: sid, llm: Shaolin::Kernel["llm.client"],
   repo: Shaolin::Kernel["cqrs.aggregate_repository"], command_bus: bus
 )
+session.tag(geo: "DE", variant: "tripwire") # stamp app dimensions onto the session (entry profile)
 
 puts "== a human-paced conversation (one turn per inbound message) =="
 [["hi there", "free"], ["got anything for me?", "offer"], ["do something bad", "offer"], ["thanks", "offer"]].each do |msg, _|
@@ -96,5 +99,17 @@ raise "funnel should have advanced onboarding→free→offer" unless session.sta
 raise "the offer tool should have run as a command" unless offers.size == 1
 raise "history should hold 4 user + 4 assistant turns" unless session.history.size == 8
 raise "history must interleave user/assistant" unless session.history.first == { role: "user", content: "hi there" }
+
+puts "\n== cross-user read-side (what analytics / an offer engine queries — issue #5) =="
+reader = Shaolin::Kernel["conversations.read"] # framework infra, not the session driver
+row = reader.find(sid)
+puts "  conversations_read[#{sid[0, 8]}…]: stage=#{row.stage}, turns=#{row.turn_count}, tags=#{row.tags}"
+puts "  in_stage('offer'):                 #{reader.in_stage('offer').count} session(s)"
+puts "  query(stage:'offer', tags geo=DE): #{reader.query(stage: 'offer', tags: { geo: 'DE' }).count} session(s)"
+
+raise "read model wrong stage" unless row.stage == "offer"
+raise "read model wrong turn count" unless row.turn_count == 4
+raise "read model missing tags" unless row.tags["geo"] == "DE" && row.tags["variant"] == "tripwire"
+raise "cross-user query failed" unless reader.query(stage: "offer", tags: { geo: "DE" }).pluck(:session_id) == [sid]
 
 puts "\n✅ shaolin conversation OK — human-paced turns, enriching funnel stage (strict), tool=command, recent-window memory; one event-sourced run, rests at await, never terminal (deterministic, no network)"
