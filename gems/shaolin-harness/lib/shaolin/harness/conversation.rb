@@ -1,4 +1,5 @@
 require_relative "runner"
+require_relative "conversation/read_model"
 
 module Shaolin
   # A long-lived, human-paced conversation — the CONVERSATIONAL mode of the
@@ -68,6 +69,15 @@ module Shaolin
         @on_turn
       end
 
+      # Declarative per-turn tag stamping: tags { |run| { geo: ..., variant: ... } }.
+      # Computed each turn and merged onto the session (projected to conversations_read
+      # for cross-user funnel queries). Imperative stamping is `run.tag(...)` /
+      # `session.tag(...)` from anywhere (e.g. entry-profile at the first turn).
+      def tags(&block)
+        @tags_block = block if block
+        @tags_block
+      end
+
       # Normalized funnel edges handed to the run at start (so the aggregate
       # validates transitions itself); nil when no stages are declared.
       def stage_edges = stages.empty? ? nil : edges
@@ -105,10 +115,32 @@ module Shaolin
       def stage = run.stage
       def awaiting? = @runner.awaiting?(run)
       def history = run.history
+      def tags = run.tags
+
+      # Stamp app dimensions onto the session (geo/device/variant/segment).
+      def tag(**attrs)
+        @runner.start(id: @id) unless @runner.started?(@id)
+        @runner.tag(@id, attrs)
+        self
+      end
     end
 
     def self.session(id:, llm:, repo:, command_bus: nil)
       Session.new(harness: self, id: id, llm: llm, repo: repo, command_bus: command_bus)
+    end
+
+    # Opt-in: maintain the cross-user `conversations_read` projection + register the
+    # `conversations.read` query facade in the Kernel. Register AFTER :cqrs.
+    def self.register_read_model!
+      Shaolin.register_provider(:conversation_read) do
+        start do
+          Schema.create!
+          es = Shaolin::Kernel["cqrs.event_store"]
+          es.subscribe(Projector.new, to: [Events::RunStarted, Events::StageChanged,
+                                           Events::MessageReceived, Events::Tagged])
+          Shaolin::Kernel.register("conversations.read", Reader)
+        end
+      end
     end
   end
 end

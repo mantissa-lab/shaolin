@@ -217,7 +217,13 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   reply-parsing). A turn is itself an autonomous mini-run that ends by resting at the await gate, so both
   modes compose in one event-sourced run. **Canned gates** reply with fixed text and make NO LLM call —
   `gate :refuse, reply: "…"` (or `reply { |run| … }`) — for refusals/nudges/scripted lines (zero tokens).
-  Example: `examples/conversation`.
+  Example: `examples/conversation`. **Cross-user read-side:** opt-in
+  `Shaolin::Conversation.register_read_model!` maintains a `conversations_read` projection
+  (`session_id, harness, stage, turn_count, last_turn_at, tags jsonb`) so other modules query the whole
+  base via the Kernel-registered `conversations.read` facade — `find(id)`, `in_stage("offer")`,
+  `with_min_turns(n, since:)`, `query(stage:, tags: {geo: "DE"})` — without driving the session (CQRS
+  read model; the run stream is the write side). Stamp app dims with `session.tag(geo:, variant:)` /
+  `run.tag(...)` / a `tags { |run| {...} }` block; metrics stay app-side.
 - **Realtime/audio (provider-agnostic)**: `Shaolin::LLM::Realtime` — normalized session events
   (`session_started`/`transcript_delta`/`audio_delta`/`tool_call`/`turn_completed`/...), `Audio` (PCM16/
   base64/framing), a `Session`/`Client` port (`send_audio`/`send_text`/`commit`/`tool_result`/`close` +

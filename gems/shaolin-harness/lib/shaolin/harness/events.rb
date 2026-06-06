@@ -22,6 +22,9 @@ module Shaolin
       class MessageReceived < RubyEventStore::Event; end
       class Replied         < RubyEventStore::Event; end
       class StageChanged    < RubyEventStore::Event; end
+      # App dimensions stamped onto the session (geo, variant, segment, …) — merged
+      # into run state and projected onto the conversations_read row's `tags`.
+      class Tagged          < RubyEventStore::Event; end
     end
   end
 end

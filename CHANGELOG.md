@@ -9,6 +9,18 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Conversation read-side — `conversations_read` projection (issue #5)
+
+- Opt-in `Shaolin::Conversation.register_read_model!` maintains a cross-user `conversations_read` table
+  (`session_id, harness, stage, turn_count, last_turn_at, tags jsonb`) via a sync projection over the
+  conversation events — so analytics / an offer engine / entitlement can query the whole user base
+  (`in_stage("offer")`, `with_min_turns(n, since: today)`, `tags->>'geo'='DE'`) **without** driving the
+  session. CQRS: the run stream is the write side; this is the read model. The query facade is
+  registered as `conversations.read` in the Kernel (framework infra, read by any module — not a
+  cross-module reach-in). App dimensions are stamped with `session.tag(geo:, variant:)` /
+  `run.tag(...)` (from on_result/on_turn) or a declarative `tags { |run| {...} }` block, persisted as a
+  `Tagged` event and projected onto the row's jsonb `tags`. Aggregation/metrics (EPC) stay app-side.
+
 ### Structured output (issue #4) + canned-reply gates (issue #3)
 
 - **Structured output** — `Shaolin::LLM::Client#complete(…, response_format:)` passes OpenAI's

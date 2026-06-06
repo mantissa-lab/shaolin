@@ -14,7 +14,7 @@ module Shaolin
       FAILED = "failed"
 
       def start(harness:, input: nil, stage: nil, edges: nil)
-        apply(Events::RunStarted.new(data: { harness: harness, input: input, stage: stage, edges: edges }))
+        apply(Events::RunStarted.new(data: { run_id: id, harness: harness, input: input, stage: stage, edges: edges }))
       end
 
       # --- conversational (human-paced) mode -------------------------------
@@ -22,13 +22,22 @@ module Shaolin
       # Record an inbound human message — the start of a turn. Becomes the latest
       # user entry in the conversation history the prompt builder reads.
       def received(message)
-        apply(Events::MessageReceived.new(data: { content: message.to_s }))
+        apply(Events::MessageReceived.new(data: { run_id: id, content: message.to_s }))
+      end
+
+      # Stamp app dimensions (geo, device, variant, segment, …) onto the session —
+      # merged into run state and projected onto the conversations_read row's tags
+      # for cross-user funnel queries. Call from session start, on_result, on_turn.
+      def tag(attrs)
+        return if attrs.nil? || attrs.empty?
+
+        apply(Events::Tagged.new(data: { run_id: id, tags: attrs }))
       end
 
       # The turn's user-facing reply (its assistant history entry). Distinct from
       # per-gate `responded` (full audit incl. internal classification gates).
       def replied(text)
-        apply(Events::Replied.new(data: { content: text.to_s }))
+        apply(Events::Replied.new(data: { run_id: id, content: text.to_s }))
       end
 
       # Advance the funnel. STRICT against the declared edges carried on the run:
@@ -45,7 +54,7 @@ module Shaolin
                 "illegal stage transition #{@stage.inspect} → #{to.inspect} (allowed from #{@stage.inspect}: #{allowed})"
         end
 
-        apply(Events::StageChanged.new(data: { from: @stage, to: to }))
+        apply(Events::StageChanged.new(data: { run_id: id, from: @stage, to: to }))
       end
 
       def enter(gate)
@@ -103,6 +112,9 @@ module Shaolin
       def history = (@history ||= [])
       def recent(n = nil) = n ? history.last(n) : history
 
+      # App dimensions stamped on the session (string keys), e.g. {"geo"=>"DE"}.
+      def tags = (@tags ||= {})
+
       on(Events::RunStarted) do |e|
         @harness_name = e.data[:harness]
         @input = e.data[:input]
@@ -121,6 +133,7 @@ module Shaolin
       on(Events::MessageReceived) { |e| history << { role: "user", content: e.data[:content] } }
       on(Events::Replied) { |e| history << { role: "assistant", content: e.data[:content] }; @last_text = e.data[:content] }
       on(Events::StageChanged) { |e| @stage = e.data[:to] }
+      on(Events::Tagged) { |e| tags.merge!(e.data[:tags].transform_keys(&:to_s)) }
 
       private
 
