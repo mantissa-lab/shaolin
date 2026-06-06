@@ -113,7 +113,7 @@ RSpec.describe Shaolin::LLM do
     it "applies open/read timeouts to the HTTP connection (generous default for slow reasoning models)" do
       fake = instance_double(Net::HTTP, use_ssl?: true)
       allow(fake).to receive(:use_ssl=)
-      allow(fake).to receive(:request).and_return(instance_double(Net::HTTPResponse, body: '{"choices":[{"message":{"content":"ok"}}]}'))
+      allow(fake).to receive(:request).and_return(instance_double(Net::HTTPResponse, code: "200", body: '{"choices":[{"message":{"content":"ok"}}]}'))
       allow(Net::HTTP).to receive(:new).and_return(fake)
 
       # default: 15s connect / 600s read (a single Qwen <think> reply blows past Net::HTTP's 60s default)
@@ -125,12 +125,44 @@ RSpec.describe Shaolin::LLM do
     it "lets the read/open timeouts be configured" do
       fake = instance_double(Net::HTTP, use_ssl?: true)
       allow(fake).to receive(:use_ssl=)
-      allow(fake).to receive(:request).and_return(instance_double(Net::HTTPResponse, body: "{}"))
+      allow(fake).to receive(:request).and_return(instance_double(Net::HTTPResponse, code: "200", body: "{}"))
       allow(Net::HTTP).to receive(:new).and_return(fake)
 
       expect(fake).to receive(:open_timeout=).with(5)
       expect(fake).to receive(:read_timeout=).with(240)
       described_class.new(api_key: "t", open_timeout: 5, read_timeout: 240).complete(messages: [])
+    end
+
+    # A stubbed Net::HTTP whose #request returns the given responses in order.
+    def stub_http(*responses)
+      fake = instance_double(Net::HTTP, use_ssl?: true)
+      allow(fake).to receive(:use_ssl=)
+      allow(fake).to receive(:open_timeout=)
+      allow(fake).to receive(:read_timeout=)
+      allow(fake).to receive(:request).and_return(*responses)
+      allow(Net::HTTP).to receive(:new).and_return(fake)
+      fake
+    end
+
+    def res(code, body) = instance_double(Net::HTTPResponse, code: code, body: body)
+
+    it "raises a typed HTTPError on a non-2xx response instead of JSON-parsing HTML" do
+      stub_http(res("502", "<!DOCTYPE html><html>bad gateway</html>"))
+      expect { described_class.new(api_key: "t", max_retries: 0).complete(messages: []) }
+        .to raise_error(Shaolin::LLM::HTTPError) { |e| expect(e.status).to eq(502); expect(e.body).to include("bad gateway") }
+    end
+
+    it "retries a transient 5xx and then succeeds" do
+      stub_http(res("503", "<html>"), res("200", '{"choices":[{"message":{"content":"ok"}}]}'))
+      result = described_class.new(api_key: "t", max_retries: 2, retry_backoff: [0, 0]).complete(messages: [])
+      expect(result.text).to eq("ok")
+    end
+
+    it "does NOT retry a 4xx client error" do
+      fake = stub_http(res("400", "bad request"))
+      expect(fake).to receive(:request).once.and_return(res("400", "bad request"))
+      expect { described_class.new(api_key: "t", max_retries: 2, retry_backoff: [0, 0]).complete(messages: []) }
+        .to raise_error(Shaolin::LLM::HTTPError) { |e| expect(e.status).to eq(400) }
     end
 
     it "completes against the live API when OPENAI_API_KEY is set", :live do

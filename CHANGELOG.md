@@ -9,6 +9,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### LLM: graceful non-2xx handling + transient retry (issue #7)
+
+- `Shaolin::LLM::OpenAI#post` now checks the HTTP status: a non-2xx response raises a typed
+  **`Shaolin::LLM::HTTPError`** (status + truncated body) instead of blindly `JSON.parse`-ing — so a
+  gateway's 502/503 HTML page no longer crashes the turn with a JSON parse error; callers can rescue.
+  Plus a built-in retry (`max_retries:` default 2, `retry_backoff:`) for **transient** failures only —
+  5xx, timeouts, dropped sockets — never 4xx; set `max_retries: 0` to disable.
+
 ### Worker/scheduler on concurrent-ruby (cleaner concurrency + shutdown)
 
 - `shaolin worker` now drains on a `Concurrent::FixedThreadPool` (clean `shutdown` + `wait_for_termination`

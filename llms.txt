@@ -187,7 +187,9 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
 - `shaolin-llm`: `Shaolin::LLM::Client#complete(messages:, tools:)` → `Completion(text, reasoning,
   tool_calls, usage)`; adapters `InMemory` (scripted/deterministic, for tests) and `OpenAI` (key from
   `ENV["OPENAI_API_KEY"]`; `open_timeout:`/`read_timeout:` configurable, read default 600s so slow
-  reasoning replies don't hit Net::HTTP's 60s default). `:llm` provider → `llm.client`. Realtime/audio
+  reasoning replies don't hit Net::HTTP's 60s default; a non-2xx response raises a typed
+  `Shaolin::LLM::HTTPError` (no JSON-parse of an HTML gateway page), with built-in retry of transient
+  5xx/timeouts via `max_retries:`/`retry_backoff:`). `:llm` provider → `llm.client`. Realtime/audio
   is a later port.
   **Reasoning:** `Completion#reasoning` carries the model's thinking trace — mapped from a
   `reasoning_content`/`reasoning` field automatically, or lifted out of an inline `<think>…</think>`
