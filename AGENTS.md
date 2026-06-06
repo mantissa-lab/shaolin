@@ -5,11 +5,23 @@ For driving shaolin *as a user/app author*, read [`llms.txt`](llms.txt).
 
 ## Layout
 
-- `gems/shaolin-<name>/` — one gem per concern, each with its own `spec/` (RSpec).
-  Dependency order: `core → cqrs → activerecord → http → dto → server → cli`.
+- `gems/shaolin-<name>/` — one gem per concern (13 of them), each with its own `spec/` (RSpec).
+  Dependency order: `core → dto → cqrs → activerecord → http → server → messaging → jobs →
+  redis → rabbitmq → llm → harness → cli`.
+- `gems/shaolin/` — the **umbrella** meta-gem: depends on all 13 (pinned exact) and
+  `require "shaolin"` loads the stack. Apps install just this from git.
 - `examples/demo/` — a working `users` app; the reference the `g module` generator mirrors.
 - `docs/superpowers/specs/` — design spec per sub-project.
-- Root `Gemfile` wires all gems as path gems sharing one bundle.
+- Root `Gemfile` wires all gems (incl. the umbrella) as path gems sharing one bundle — this is the
+  framework-dev bundle; **as maintainer I stay on this local checkout, I don't install from git.**
+
+## Publication
+
+- Published to **private git** `git@github.com:mantissa-lab/shaolin.git` (default branch `main`),
+  NOT RubyGems. Consumers install from git (see `llms.txt` / generated `Gemfile`).
+- `origin` here pushes over https as gh account `dimaskynet` (admin); plain `git push` works.
+- Workflow: branch → commit → merge `--no-ff` to `main` → push. Downstream issues/PRs land on the
+  repo; review and accept them as maintainer.
 
 ## Conventions (non-negotiable)
 

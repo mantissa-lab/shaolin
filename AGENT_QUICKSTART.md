@@ -1,8 +1,10 @@
 # Agent quickstart — build a NEW app on shaolin
 
-The shaolin gems aren't published yet, so there's no global `shaolin` command until you've created
-an app. Use the local launcher at `/home/netsky/dev/labs/shaolin/bin/shaolin` to scaffold; after
-that, use the app's own `bundle exec shaolin`.
+The shaolin gems live in a private git repo (not RubyGems), so there's no global `shaolin` command
+until you've created an app. On this machine the framework checkout is right here, so scaffold with
+the local launcher at `/home/netsky/dev/labs/shaolin/bin/shaolin` + `--path` (builds against the
+local gems); after that, use the app's own `bundle exec shaolin`. (Apps elsewhere install from git —
+see `llms.txt`.)
 
 ## 0. Environment (required)
 
@@ -21,14 +23,15 @@ RBENV_VERSION=4.0.5 bundle install
 psql -p 5433 -h /tmp -U postgres -d postgres -c "CREATE DATABASE myapp_development;"
 ```
 
-`--path` makes the app's Gemfile reference the local framework gems (since they're unpublished).
+`--path` makes the app's Gemfile reference the local framework gems via one `glob:` line (use this
+on the machine that has the checkout; apps elsewhere use the git source instead).
 
 ## 2. Work in the app (use its own binstub)
 
 ```bash
-bundle exec shaolin g module orders             # event-sourced module (command/event/aggregate/
+bundle exec shaolin g module categories         # plain CRUD module (ActiveRecord model/dto/controller)
+bundle exec shaolin g module orders --es        # event-sourced CQRS module (command/event/aggregate/
                                                 #   handler/projection/read_model/query/dto/controller/specs)
-bundle exec shaolin g module categories --crud  # plain CRUD module (ActiveRecord, no events)
 bundle exec rspec                               # specs (green out of the box)
 DB_HOST=/tmp DB_PORT=5433 DB_NAME=myapp_development PORT=9000 bundle exec shaolin server   # Falcon
 bundle exec shaolin lint                        # isolation check (no cross-module reach-ins)
