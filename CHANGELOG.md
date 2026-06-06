@@ -9,6 +9,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### LLM HTTP timeouts — no more dropped replies on slow reasoning models (issue #6)
+
+- `Shaolin::LLM::OpenAI.new` takes `open_timeout:` (default 15s) and `read_timeout:` (default **600s**),
+  applied to the Net::HTTP connection. Net::HTTP's 60s default read timeout dropped single replies from
+  reasoning models (Qwen `<think>`, o-series) with `Net::ReadTimeout`, failing the whole turn; the
+  generous default fixes it out of the box and both are tunable per deployment — no more injecting a
+  full custom `transport:` just to raise a timeout.
+
 ### Conversation read-side — `conversations_read` projection (issue #5)
 
 - Opt-in `Shaolin::Conversation.register_read_model!` maintains a cross-user `conversations_read` table

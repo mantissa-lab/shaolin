@@ -19,13 +19,20 @@ module Shaolin
       # Needed for models like Qwen that emit reasoning inline. Off by default, so
       # providers using a separate `reasoning_content`/`reasoning` field (mapped
       # automatically) and plain providers are unaffected.
+      # `read_timeout` defaults to a generous 600s because reasoning models (Qwen
+      # `<think>`, o-series) routinely take well over Net::HTTP's 60s default on a
+      # single reply — otherwise a slow completion raises Net::ReadTimeout and the
+      # turn is lost. `open_timeout` guards connect. Tune both per deployment.
       def initialize(api_key: ENV["OPENAI_API_KEY"], model: "gpt-4.1",
-                     base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil)
+                     base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil,
+                     open_timeout: 15, read_timeout: 600)
         @api_key = api_key
         @model = model
         @base = base
         @transport = transport
         @reasoning_tag = reasoning_tag
+        @open_timeout = open_timeout
+        @read_timeout = read_timeout
       end
 
       def complete(messages:, tools: [], model: nil, response_format: nil)
@@ -102,6 +109,8 @@ module Shaolin
         uri = URI("#{@base}#{path}")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = (uri.scheme == "https")
+        http.open_timeout = @open_timeout
+        http.read_timeout = @read_timeout
         req = Net::HTTP::Post.new(uri)
         req["Authorization"] = "Bearer #{@api_key}"
         req["Content-Type"] = "application/json"

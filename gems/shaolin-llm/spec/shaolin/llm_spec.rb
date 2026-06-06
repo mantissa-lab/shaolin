@@ -110,6 +110,29 @@ RSpec.describe Shaolin::LLM do
       expect(result.data).to be_nil
     end
 
+    it "applies open/read timeouts to the HTTP connection (generous default for slow reasoning models)" do
+      fake = instance_double(Net::HTTP, use_ssl?: true)
+      allow(fake).to receive(:use_ssl=)
+      allow(fake).to receive(:request).and_return(instance_double(Net::HTTPResponse, body: '{"choices":[{"message":{"content":"ok"}}]}'))
+      allow(Net::HTTP).to receive(:new).and_return(fake)
+
+      # default: 15s connect / 600s read (a single Qwen <think> reply blows past Net::HTTP's 60s default)
+      expect(fake).to receive(:open_timeout=).with(15)
+      expect(fake).to receive(:read_timeout=).with(600)
+      described_class.new(api_key: "t").complete(messages: [])
+    end
+
+    it "lets the read/open timeouts be configured" do
+      fake = instance_double(Net::HTTP, use_ssl?: true)
+      allow(fake).to receive(:use_ssl=)
+      allow(fake).to receive(:request).and_return(instance_double(Net::HTTPResponse, body: "{}"))
+      allow(Net::HTTP).to receive(:new).and_return(fake)
+
+      expect(fake).to receive(:open_timeout=).with(5)
+      expect(fake).to receive(:read_timeout=).with(240)
+      described_class.new(api_key: "t", open_timeout: 5, read_timeout: 240).complete(messages: [])
+    end
+
     it "completes against the live API when OPENAI_API_KEY is set", :live do
       skip "set OPENAI_API_KEY to run the live OpenAI test" unless ENV["OPENAI_API_KEY"]
 
