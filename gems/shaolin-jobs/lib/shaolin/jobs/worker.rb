@@ -1,4 +1,5 @@
 require "yaml"
+require "concurrent"
 require "shaolin/core"
 require_relative "outbox"
 require_relative "outbox_job"
@@ -27,7 +28,7 @@ module Shaolin
         @tx_per_job = tx_per_job
         @backoff = backoff
         @max_attempts = max_attempts
-        @stop = false
+        @stop = Concurrent::AtomicBoolean.new(false)
       end
 
       # Drain up to `batch` due jobs. Returns the count processed.
@@ -35,13 +36,18 @@ module Shaolin
         @tx_per_job ? drain_per_job(now) : drain_batch(now)
       end
 
-      # Long-running loop with N threads + graceful SIGTERM/INT stop.
+      # Long-running loop on a fixed thread pool + graceful SIGTERM/INT stop. Each
+      # pool thread drains until the stop flag flips; then the pool drains and we
+      # wait for in-flight work to finish.
       def run(poll_interval: 0.5, threads: 1)
         install_traps
-        Array.new(threads) { Thread.new { drain(poll_interval) } }.each(&:join)
+        pool = Concurrent::FixedThreadPool.new(threads)
+        threads.times { pool.post { drain(poll_interval) } }
+        pool.shutdown
+        pool.wait_for_termination
       end
 
-      def stop! = (@stop = true)
+      def stop! = @stop.make_true
 
       private
 
@@ -76,9 +82,17 @@ module Shaolin
       end
 
       def drain(poll_interval)
-        until @stop
-          sleep(poll_interval) if run_once.zero?
+        until @stop.true?
+          sleep(poll_interval) if safe_run_once.zero?
         end
+      end
+
+      # A transient DB/lock error in one poll must not kill the drain loop.
+      def safe_run_once
+        run_once
+      rescue StandardError => e
+        Log.emit("error", "worker.run_failed", error: e.message)
+        0
       end
 
       def process(job, now)
@@ -106,7 +120,7 @@ module Shaolin
       end
 
       def install_traps
-        %w[TERM INT].each { |sig| Signal.trap(sig) { @stop = true } }
+        %w[TERM INT].each { |sig| Signal.trap(sig) { @stop.make_true } }
       end
     end
   end
