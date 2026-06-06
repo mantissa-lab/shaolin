@@ -186,7 +186,9 @@
 Build LLM harnesses as **event-sourced gate state machines** — durable, auditable, replayable.
 - `shaolin-llm`: `Shaolin::LLM::Client#complete(messages:, tools:)` → `Completion(text, reasoning,
   tool_calls, usage)`; adapters `InMemory` (scripted/deterministic, for tests) and `OpenAI` (key from
-  `ENV["OPENAI_API_KEY"]`). `:llm` provider → `llm.client`. Realtime/audio is a later port.
+  `ENV["OPENAI_API_KEY"]`; `open_timeout:`/`read_timeout:` configurable, read default 600s so slow
+  reasoning replies don't hit Net::HTTP's 60s default). `:llm` provider → `llm.client`. Realtime/audio
+  is a later port.
   **Reasoning:** `Completion#reasoning` carries the model's thinking trace — mapped from a
   `reasoning_content`/`reasoning` field automatically, or lifted out of an inline `<think>…</think>`
   block when you opt in with `OpenAI.new(reasoning_tag: "think")` (off by default; for Qwen-style
