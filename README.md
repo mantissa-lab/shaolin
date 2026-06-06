@@ -20,11 +20,28 @@ folder you can hand to its own agent. Built to be **LLM-operable** end to end.
 - **LLM-friendly by construction.** Deterministic conventions, generators, explicit `require`s, a
   generated `AGENTS.md`, and machine-readable contracts.
 
+## Install
+
+shaolin is distributed via (private) **git**, not RubyGems. One line in an app's `Gemfile` pulls the
+whole framework — Bundler's `glob:` exposes every gemspec in the repo so the umbrella resolves all
+sub-gems (you need read access to the repo):
+
+```ruby
+gem "shaolin", git: "git@github.com:mantissa-lab/shaolin.git", glob: "gems/*/*.gemspec"
+```
+
+```ruby
+# config/boot.rb
+require "shaolin"
+```
+
+`shaolin new` scaffolds this for you. Pin a `tag:`/`branch:` for reproducible builds.
+
 ## Quickstart
 
 ```bash
 shaolin new shop && cd shop
-shaolin g module orders          # full CQRS/ES module, boots immediately
+shaolin g module orders          # plain CRUD module, boots immediately (add --es for CQRS/ES)
 shaolin server                   # Falcon on http://localhost:8080
 
 curl -X POST localhost:8080/orders -H 'content-type: application/json' -d '{"name":"Widget"}'
