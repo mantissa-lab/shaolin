@@ -1,17 +1,39 @@
 require "net/http"
 require "uri"
 require "json"
+require "shaolin/core"
 require_relative "client"
 require_relative "completion"
 
 module Shaolin
   module LLM
+    # Raised when the LLM endpoint returns a non-2xx response (e.g. a gateway
+    # proxy serving a 502/503 HTML page). Carries the status + a truncated body so
+    # callers can rescue/inspect instead of crashing on a JSON parse of HTML.
+    class HTTPError < Shaolin::Error
+      attr_reader :status, :body
+
+      def initialize(status, body)
+        @status = status
+        @body = body
+        super("LLM HTTP #{status}: #{body}")
+      end
+
+      def server_error? = status >= 500
+    end
+
     # OpenAI Chat Completions adapter (text + function/tool calling). Pure stdlib
     # Net::HTTP — no extra gem. The API key comes ONLY from the environment
     # (`OPENAI_API_KEY`), never hardcoded. Inject `transport:` (a ->(path, body){})
     # in tests to avoid the network. (Realtime/audio is a separate phase.)
     class OpenAI
       include Client
+
+      # Transient failures worth retrying (alongside 5xx HTTPError): connect/read
+      # timeouts and dropped sockets — exactly the intermittent gateway blips of a
+      # reasoning-model proxy.
+      RETRYABLE = [Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED,
+                   Errno::ECONNRESET, EOFError, SocketError].freeze
 
       # `reasoning_tag:` (opt-in) — when set (e.g. "think"), an inline
       # `<think>…</think>` block in the message content is lifted out into
@@ -23,9 +45,12 @@ module Shaolin
       # `<think>`, o-series) routinely take well over Net::HTTP's 60s default on a
       # single reply — otherwise a slow completion raises Net::ReadTimeout and the
       # turn is lost. `open_timeout` guards connect. Tune both per deployment.
+      # `max_retries` (default 2 → up to 3 attempts) retries ONLY transient failures
+      # — 5xx responses, timeouts, dropped sockets — with `retry_backoff` waits
+      # between attempts. 4xx (client errors) never retry. Set 0 to disable.
       def initialize(api_key: ENV["OPENAI_API_KEY"], model: "gpt-4.1",
                      base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil,
-                     open_timeout: 15, read_timeout: 600)
+                     open_timeout: 15, read_timeout: 600, max_retries: 2, retry_backoff: [0.5, 2.0])
         @api_key = api_key
         @model = model
         @base = base
@@ -33,6 +58,8 @@ module Shaolin
         @reasoning_tag = reasoning_tag
         @open_timeout = open_timeout
         @read_timeout = read_timeout
+        @max_retries = max_retries
+        @retry_backoff = retry_backoff
       end
 
       def complete(messages:, tools: [], model: nil, response_format: nil)
@@ -115,7 +142,31 @@ module Shaolin
         req["Authorization"] = "Bearer #{@api_key}"
         req["Content-Type"] = "application/json"
         req.body = JSON.generate(body)
-        JSON.parse(http.request(req).body)
+
+        with_retries { request_json(http, req) }
+      end
+
+      # One request: non-2xx raises a typed HTTPError (carrying status + truncated
+      # body) instead of blindly JSON-parsing an HTML gateway page.
+      def request_json(http, req)
+        res = http.request(req)
+        raise HTTPError.new(Integer(res.code), res.body.to_s[0, 500]) unless res.code.start_with?("2")
+
+        JSON.parse(res.body)
+      end
+
+      def with_retries
+        attempt = 0
+        begin
+          yield
+        rescue *RETRYABLE, HTTPError => e
+          transient = e.is_a?(HTTPError) ? e.server_error? : true
+          raise unless transient && attempt < @max_retries
+
+          sleep(@retry_backoff[attempt] || @retry_backoff.last || 0)
+          attempt += 1
+          retry
+        end
       end
     end
   end
