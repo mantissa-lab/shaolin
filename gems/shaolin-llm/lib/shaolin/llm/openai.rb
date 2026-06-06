@@ -13,12 +13,19 @@ module Shaolin
     class OpenAI
       include Client
 
+      # `reasoning_tag:` (opt-in) — when set (e.g. "think"), an inline
+      # `<think>…</think>` block in the message content is lifted out into
+      # `Completion#reasoning` and the remaining content returned as clean `text`.
+      # Needed for models like Qwen that emit reasoning inline. Off by default, so
+      # providers using a separate `reasoning_content`/`reasoning` field (mapped
+      # automatically) and plain providers are unaffected.
       def initialize(api_key: ENV["OPENAI_API_KEY"], model: "gpt-4.1",
-                     base: "https://api.openai.com/v1", transport: nil)
+                     base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil)
         @api_key = api_key
         @model = model
         @base = base
         @transport = transport
+        @reasoning_tag = reasoning_tag
       end
 
       def complete(messages:, tools: [], model: nil)
@@ -29,14 +36,38 @@ module Shaolin
 
         response = post("/chat/completions", body)
         message = response.dig("choices", 0, "message") || {}
+        text, reasoning = extract_reasoning(message)
         Completion.new(
-          text: message["content"],
+          text: text,
+          reasoning: reasoning,
           tool_calls: parse_tool_calls(message["tool_calls"]),
           usage: response["usage"] || {}
         )
       end
 
       private
+
+      # Returns [clean_text, reasoning]. A provider-supplied reasoning field wins
+      # (content is already clean); otherwise, if a reasoning_tag is configured,
+      # lift inline `<tag>…</tag>` block(s) out of the content.
+      def extract_reasoning(message)
+        content = message["content"]
+        field = message["reasoning_content"] || message["reasoning"]
+        return [content, field] if field && !field.empty?
+        return [content, nil] unless @reasoning_tag && content
+
+        strip_inline_reasoning(content)
+      end
+
+      def strip_inline_reasoning(content)
+        tag = Regexp.escape(@reasoning_tag)
+        reasoning = []
+        clean = content.gsub(%r{<#{tag}>(.*?)</#{tag}>}m) do
+          reasoning << Regexp.last_match(1).strip
+          ""
+        end
+        [clean.strip, reasoning.empty? ? nil : reasoning.join("\n\n")]
+      end
 
       def parse_tool_calls(raw)
         Array(raw).map do |tc|

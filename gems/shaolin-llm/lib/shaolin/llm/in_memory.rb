@@ -7,8 +7,11 @@ module Shaolin
     # network, no keys). Hand it Completions (or hashes) to return in order; it
     # records every call so specs can assert on the prompt/tools sent.
     #
+    # Scripted Completions can carry `reasoning:` too, for deterministic harness
+    # tests that assert on the persisted reasoning trace.
+    #
     #   llm = Shaolin::LLM::InMemory.new(
-    #     Shaolin::LLM::Completion.new(text: "billing"),
+    #     Shaolin::LLM::Completion.new(text: "billing", reasoning: "user mentions an invoice"),
     #     { text: "done" }
     #   )
     class InMemory
