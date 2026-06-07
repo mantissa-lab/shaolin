@@ -18,6 +18,13 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
   event from the outbox row's own payload instead of reloading it from the store per job — one fewer
   round-trip; off by default since the store is canonical (e.g. after event upcasting).
 
+### Circuit breaker for outbound adapters (issue #25, part 2)
+
+- `Shaolin::CircuitBreaker` (core, thread-safe, stdlib only) — `breaker.call { outbound_call }`. After
+  `threshold` consecutive failures it opens and fast-fails for `reset_timeout`s (so a brownout doesn't
+  pile up doomed calls), then half-opens to trial one through. `Shaolin::RabbitMQ::Publisher.new(breaker:)`
+  wires it in; the same primitive wraps any Redis/HTTP outbound call.
+
 ### HTTP rate limiting (issue #25, part 1)
 
 - `Shaolin::HTTP::RateLimit` — a fixed-window rate-limit middleware backed by any `Shaolin::Store`

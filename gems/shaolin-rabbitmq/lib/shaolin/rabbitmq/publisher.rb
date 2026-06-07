@@ -10,18 +10,23 @@ module Shaolin
     class Publisher
       include Shaolin::Messaging::Publisher
 
-      def initialize(exchange: nil, url: ENV["RABBITMQ_URL"], exchange_name: "shaolin")
+      # `breaker:` (optional, a Shaolin::CircuitBreaker) fast-fails publishes during
+      # a broker brownout instead of piling up doomed connections.
+      def initialize(exchange: nil, url: ENV["RABBITMQ_URL"], exchange_name: "shaolin", breaker: nil)
         @exchange = exchange
         @url = url
         @exchange_name = exchange_name
+        @breaker = breaker
       end
 
       def publish(integration_event)
-        exchange.publish(integration_event.to_json, routing_key: integration_event.event_type)
+        run { exchange.publish(integration_event.to_json, routing_key: integration_event.event_type) }
         integration_event
       end
 
       private
+
+      def run(&block) = @breaker ? @breaker.call(&block) : block.call
 
       def exchange
         @exchange ||= begin
