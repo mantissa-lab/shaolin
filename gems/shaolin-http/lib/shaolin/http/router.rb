@@ -7,6 +7,7 @@ require_relative "errors"
 require_relative "rewindable_input"
 require_relative "request_logger"
 require_relative "error_boundary"
+require_relative "concurrency"
 require_relative "metrics"
 
 module Shaolin
@@ -29,7 +30,7 @@ module Shaolin
       UNAUTHORIZED = [401, { "content-type" => "application/json" },
                       [JSON.generate(error: { code: "unauthorized", message: "authentication required" })]].freeze
 
-      def self.build(containers, middleware: [], openapi: nil, authenticators: {})
+      def self.build(containers, middleware: [], openapi: nil, authenticators: {}, max_concurrency: nil)
         defs = collect_route_defs(containers)
         detect_conflicts!(defs)
         validate_auth!(defs, authenticators)
@@ -37,6 +38,7 @@ module Shaolin
         app = build_router(defs, openapi, authenticators)
         middleware.reverse_each { |mw| app = mw.call(app) }
         app = RewindableInput.new(app)
+        app = Concurrency.new(app, max: max_concurrency) if max_concurrency # admission control (#20)
         app = ErrorBoundary.new(app)
         RequestLogger.new(app)
       end

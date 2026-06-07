@@ -148,7 +148,12 @@
   migration** — `migrate` checksums applied files and raises on drift (the edit would never reach a DB
   that already has the version). In dev `shaolin db reset` to re-apply; in prod add a new migration.
 - **HTTP limits.** Request bodies are capped (`SHAOLIN_MAX_BODY_BYTES`, default 1 MiB → 413). Every
-  response carries `x-request-id` (propagated from an inbound header).
+  response carries `x-request-id` (propagated from an inbound header). **Admission control:** set
+  `SHAOLIN_WEB_CONCURRENCY` ≈ `DB_POOL` to bound in-flight requests — past the cap the server load-sheds
+  with 503 instead of oversubscribing the pool (off by default).
+- **Metrics.** `/metrics` (Prometheus) reports `shaolin_up`, `shaolin_db_pool{state}` (size/busy/idle/
+  waiting), `shaolin_http_in_flight`/`_concurrency_max`, outbox depth by status, and
+  `shaolin_outbox_oldest_pending_seconds` (worker lag) — the signals that predict pool/queue saturation.
 - **Request bodies.** `Shaolin::HTTP::Request#params` parses JSON, `multipart/form-data`, and
   `application/x-www-form-urlencoded` (symbol keys); uploaded files surface via `req.files`
   (`{ field => { filename:, type:, bytes:, tempfile: } }`); `req.cookies` reads request cookies.

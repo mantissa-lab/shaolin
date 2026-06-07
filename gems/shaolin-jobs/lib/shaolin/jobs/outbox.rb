@@ -71,6 +71,13 @@ module Shaolin
         OutboxJob.group(:status).count
       end
 
+      # Seconds since the oldest still-due pending job was due — the worker-lag
+      # signal (a growing value means the worker can't keep up). 0 when nothing due.
+      def oldest_pending_age(now: Time.now)
+        oldest = OutboxJob.where(status: CLAIMABLE).where("run_at <= ?", now).minimum(:run_at)
+        oldest ? (now - oldest).to_f.round(1) : 0.0
+      end
+
       # Dead-lettered jobs (exhausted retries), newest first — to inspect.
       def dead(limit: 50)
         OutboxJob.where(status: "dead").order(updated_at: :desc).limit(limit).to_a

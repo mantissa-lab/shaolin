@@ -25,6 +25,13 @@ RSpec.describe "Shaolin::Jobs::Outbox operations" do
     expect(outbox.stats).to eq("pending" => 2, "dead" => 1)
   end
 
+  it "reports worker lag as the age of the oldest due pending job" do
+    expect(outbox.oldest_pending_age).to eq(0.0) # nothing pending
+    Shaolin::Jobs::OutboxJob.create!(reactor: "R", event_id: SecureRandom.uuid, event_type: "E",
+                                     payload: "", status: "pending", run_at: Time.now - 30)
+    expect(outbox.oldest_pending_age).to be >= 30.0
+  end
+
   it "lists dead-lettered jobs" do
     dead = make(status: "dead")
     expect(outbox.dead.map(&:id)).to eq([dead.id])
