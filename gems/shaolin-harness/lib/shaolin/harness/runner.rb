@@ -49,7 +49,8 @@ module Shaolin
 
         prompt = build_prompt(gate, run)
         completion = @llm.complete(messages: to_messages(prompt), tools: tool_schemas(gate),
-                                   response_format: build_response_format(gate, run))
+                                   response_format: build_response_format(gate, run),
+                                   params: build_params(gate, run))
         tool_results = run_tools(gate, completion)
 
         @repo.unit_of_work(Run.new(id)) do |fresh|
@@ -86,8 +87,9 @@ module Shaolin
 
       def receive(id, input:)
         entry = @harness.entry_gate.name
+        content = normalize_content(input)
         @repo.unit_of_work(Run.new(id)) do |fresh|
-          fresh.received(input)
+          fresh.received(content)
           fresh.transition_to(entry) unless fresh.current_gate == entry
         end
 
@@ -152,6 +154,25 @@ module Shaolin
       def build_response_format(gate, run)
         rf = gate.response_format
         rf.respond_to?(:call) ? rf.call(run) : rf
+      end
+
+      def build_params(gate, run)
+        p = gate.params
+        (p.respond_to?(:call) ? p.call(run) : p) || {}
+      end
+
+      # A turn's message: a String or an OpenAI-style content Array passes through;
+      # a `{ text:, images: [...] }` Hash is built into multimodal content parts so
+      # a vision turn reads naturally (images may be URLs or full image_url hashes).
+      def normalize_content(input)
+        return input unless input.is_a?(Hash)
+
+        parts = []
+        parts << { type: "text", text: input[:text] } if input[:text]
+        Array(input[:images]).each do |img|
+          parts << { type: "image_url", image_url: img.is_a?(Hash) ? img : { url: img } }
+        end
+        parts
       end
 
       def to_messages(prompt)

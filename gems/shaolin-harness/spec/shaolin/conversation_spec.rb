@@ -116,6 +116,7 @@ RSpec.describe Shaolin::Conversation do
       on_result { |out, run| run.transition_to(out.data[:verdict] == "unsafe" ? :refuse : :respond) }
     end
     gate :respond, to: %i[awaiting_user] do
+      params max_tokens: 4096 # generous budget so a reasoning reply isn't truncated
       on_result { |_out, run| run.transition_to(:awaiting_user) }
     end
     gate :refuse, reply: "I can't help with that.", to: %i[awaiting_user] do
@@ -141,6 +142,38 @@ RSpec.describe Shaolin::Conversation do
     expect(session.receive("do bad")).to eq("I can't help with that.")
     expect(llm.calls.size).to eq(1) # only the safety classify; the refuse gate called no model
     expect(session.history.last).to eq(role: "assistant", content: "I can't help with that.")
+  end
+
+  it "#9 passes a gate's sampling params through to the LLM call" do
+    llm = Shaolin::LLM::InMemory.new(Shaolin::LLM::Completion.new(data: { verdict: "safe" }), c(text: "Hi"))
+    session = boot!(llm, convo: GatedConvo)
+    session.receive("hello")
+    expect(llm.calls.last[:params]).to eq(max_tokens: 4096) # the respond gate's params
+  end
+
+  it "#11 carries multimodal (image) content end-to-end: persisted + fed to the model" do
+    llm = Shaolin::LLM::InMemory.new(Shaolin::LLM::Completion.new(data: { verdict: "safe" }), c(text: "It's a cat."))
+    session = boot!(llm, convo: GatedConvo)
+
+    content = [{ type: "text", text: "what is this?" },
+               { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } }]
+    session.receive(content)
+
+    # persisted in the event-sourced history as structured content (not stringified)
+    expect(session.history.first).to eq(role: "user", content: content)
+    # and fed through to the adapter unchanged (the responder gate's messages)
+    expect(llm.calls.last[:messages]).to include(a_hash_including(role: "user", content: content))
+  end
+
+  it "#11 builds multimodal parts from a { text:, images: } shape" do
+    llm = Shaolin::LLM::InMemory.new(Shaolin::LLM::Completion.new(data: { verdict: "safe" }), c(text: "ok"))
+    session = boot!(llm, convo: GatedConvo)
+
+    session.receive(text: "describe", images: ["https://x/img.png"])
+    expect(session.history.first[:content]).to eq([
+      { type: "text", text: "describe" },
+      { type: "image_url", image_url: { url: "https://x/img.png" } }
+    ])
   end
 
   describe "#5 cross-user read-side (conversations_read projection)" do

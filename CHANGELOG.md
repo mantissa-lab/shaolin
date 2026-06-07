@@ -9,6 +9,27 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### HTTP multipart/form-data + form uploads (issue #8)
+
+- `Shaolin::HTTP::Request` now parses `multipart/form-data` and
+  `application/x-www-form-urlencoded` bodies (via Rack), not just JSON: text fields land in `params`
+  (symbol keys) and uploaded files in **`req.files`** (`{ field => { filename:, type:, bytes:, tempfile: } }`).
+  File uploads from a browser form no longer need base64-in-JSON.
+
+### LLM: sampling params, finish_reason, multimodal input (issues #9, #10, #11)
+
+- **Sampling params (#9):** `complete(…, params: { max_tokens:, temperature:, … })` and
+  `OpenAI.new(default_params:)` (per-call overrides default) merge into the request body — so a
+  reasoning model's reply isn't truncated by the server's default `max_tokens`. Harness gates can set
+  them too: `params(max_tokens: 4096)` / `params { |run| … }`.
+- **`finish_reason` (#10):** `Completion#finish_reason` (+ `truncated?` for `"length"`), populated from
+  `choices[0].finish_reason` and persisted in the harness `Responded` event — so a budget-truncated
+  reply is diagnosable / retryable instead of looking like a legit empty stop.
+- **Multimodal input (#11):** a conversation turn's message may be a String, an OpenAI-style content
+  Array, or a `{ text:, images: [...] }` shape — `Session#receive` normalizes it, persists it in the
+  event log unchanged, and passes it through to the adapter, so a vision turn flows through the
+  `Conversation` primitive (gating + event log intact). Non-multimodal providers are unaffected.
+
 ### LLM: graceful non-2xx handling + transient retry (issue #7)
 
 - `Shaolin::LLM::OpenAI#post` now checks the HTTP status: a non-2xx response raises a typed

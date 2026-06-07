@@ -21,8 +21,12 @@ module Shaolin
 
       # Record an inbound human message — the start of a turn. Becomes the latest
       # user entry in the conversation history the prompt builder reads.
-      def received(message)
-        apply(Events::MessageReceived.new(data: { run_id: id, content: message.to_s }))
+      # `content` may be a plain string OR structured multimodal content (an array
+      # of OpenAI-style parts, e.g. text + image_url) — stored as-is so a turn can
+      # carry an image end-to-end (persisted in the log, passed through to the
+      # adapter unchanged).
+      def received(content)
+        apply(Events::MessageReceived.new(data: { run_id: id, content: content }))
       end
 
       # Stamp app dimensions (geo, device, variant, segment, …) onto the session —
@@ -68,7 +72,8 @@ module Shaolin
       def responded(gate, completion)
         apply(Events::Responded.new(data: {
           gate: gate.to_s, text: completion.text, reasoning: completion.reasoning,
-          tool_calls: completion.tool_calls, usage: completion.usage, data: completion.data
+          tool_calls: completion.tool_calls, usage: completion.usage, data: completion.data,
+          finish_reason: completion.finish_reason
         }))
       end
 

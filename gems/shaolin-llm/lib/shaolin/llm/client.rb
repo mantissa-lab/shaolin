@@ -9,7 +9,11 @@ module Shaolin
     #
     # (Realtime/audio streaming is a separate port — phase 2.)
     module Client
-      def complete(messages:, tools: [], model: nil, response_format: nil)
+      # `params` (opt-in) are extra sampling params merged into the request —
+      # `max_tokens`, `temperature`, `top_p`, `stop`, … — overriding any adapter
+      # defaults. Crucial for reasoning models whose server default `max_tokens`
+      # would otherwise truncate the reply.
+      def complete(messages:, tools: [], model: nil, response_format: nil, params: {})
         raise NotImplementedError, "#{self.class} must implement #complete"
       end
     end

@@ -165,6 +165,26 @@ RSpec.describe Shaolin::LLM do
         .to raise_error(Shaolin::LLM::HTTPError) { |e| expect(e.status).to eq(400) }
     end
 
+    it "merges default_params and per-call params into the body (per-call wins)" do
+      seen = nil
+      t = lambda do |_path, body|
+        seen = body
+        { "choices" => [{ "message" => { "content" => "ok" }, "finish_reason" => "stop" }] }
+      end
+      llm = described_class.new(api_key: "t", transport: t, default_params: { max_tokens: 100, temperature: 0.2 })
+      llm.complete(messages: [], params: { temperature: 0.9 })
+
+      expect(seen[:max_tokens]).to eq(100)   # adapter default
+      expect(seen[:temperature]).to eq(0.9)  # per-call override
+    end
+
+    it "surfaces finish_reason on the Completion (truncated? when cut at length)" do
+      t = ->(_p, _b) { { "choices" => [{ "message" => { "content" => "" }, "finish_reason" => "length" }] } }
+      result = described_class.new(api_key: "t", transport: t).complete(messages: [])
+      expect(result.finish_reason).to eq("length")
+      expect(result.truncated?).to be(true)
+    end
+
     it "completes against the live API when OPENAI_API_KEY is set", :live do
       skip "set OPENAI_API_KEY to run the live OpenAI test" unless ENV["OPENAI_API_KEY"]
 

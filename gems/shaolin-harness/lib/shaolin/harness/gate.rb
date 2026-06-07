@@ -5,7 +5,7 @@ module Shaolin
     # `transitions` are the DECLARED possible next gates (`to:`), used only for
     # describe/graph — the runtime transition is still whatever `on_result` calls.
     Gate = Struct.new(:name, :entry, :terminal, :await, :prompt, :reply, :response_format,
-                      :tools, :on_result, :transitions, keyword_init: true) do
+                      :params, :tools, :on_result, :transitions, keyword_init: true) do
       def tool_names = (tools || {}).keys
       def transition_names = (transitions || []).map(&:to_s)
       # A resting state for human-paced conversation: the run parks here between
@@ -28,6 +28,7 @@ module Shaolin
         @prompt = nil
         @reply = reply
         @response_format = nil
+        @params = nil
         @tools = {}
         @on_result = nil
       end
@@ -50,6 +51,13 @@ module Shaolin
         @response_format = block || value
       end
 
+      # Sampling params for this gate's LLM call: params(max_tokens: 4096) or
+      # params { |run| ... }. Merged into the request (overrides adapter defaults)
+      # — e.g. a generous max_tokens for a heavy reasoning gate.
+      def params(value = nil, &block)
+        @params = block || value
+      end
+
       # tools(lookup: LookupAccount, place: PlaceOrder) — name the model sees =>
       # the Command class dispatched on the bus when the model calls it.
       def tools(**mapping)
@@ -63,7 +71,7 @@ module Shaolin
       def build
         Gate.new(name: @name, entry: @entry, terminal: @terminal, await: @await,
                  prompt: @prompt, reply: @reply, response_format: @response_format,
-                 tools: @tools, on_result: @on_result, transitions: @transitions)
+                 params: @params, tools: @tools, on_result: @on_result, transitions: @transitions)
       end
     end
   end

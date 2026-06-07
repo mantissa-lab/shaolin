@@ -48,9 +48,12 @@ module Shaolin
       # `max_retries` (default 2 → up to 3 attempts) retries ONLY transient failures
       # — 5xx responses, timeouts, dropped sockets — with `retry_backoff` waits
       # between attempts. 4xx (client errors) never retry. Set 0 to disable.
+      # `default_params` are sampling params applied to every call (e.g.
+      # `{ max_tokens: 4096 }`); a per-call `params:` overrides them.
       def initialize(api_key: ENV["OPENAI_API_KEY"], model: "gpt-4.1",
                      base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil,
-                     open_timeout: 15, read_timeout: 600, max_retries: 2, retry_backoff: [0.5, 2.0])
+                     open_timeout: 15, read_timeout: 600, max_retries: 2, retry_backoff: [0.5, 2.0],
+                     default_params: {})
         @api_key = api_key
         @model = model
         @base = base
@@ -60,24 +63,28 @@ module Shaolin
         @read_timeout = read_timeout
         @max_retries = max_retries
         @retry_backoff = retry_backoff
+        @default_params = default_params || {}
       end
 
-      def complete(messages:, tools: [], model: nil, response_format: nil)
+      def complete(messages:, tools: [], model: nil, response_format: nil, params: {})
         body = { model: model || @model, messages: messages }
+        body.merge!(@default_params).merge!(params || {}) # sampling: max_tokens/temperature/...
         unless tools.empty?
           body[:tools] = tools.map { |t| { type: "function", function: t } }
         end
         body[:response_format] = response_format if response_format
 
         response = post("/chat/completions", body)
-        message = response.dig("choices", 0, "message") || {}
+        choice = response.dig("choices", 0) || {}
+        message = choice["message"] || {}
         text, reasoning = extract_reasoning(message)
         Completion.new(
           text: text,
           reasoning: reasoning,
           tool_calls: parse_tool_calls(message["tool_calls"]),
           usage: response["usage"] || {},
-          data: (parse_structured(text) if response_format)
+          data: (parse_structured(text) if response_format),
+          finish_reason: choice["finish_reason"]
         )
       end
 
