@@ -55,4 +55,14 @@ RSpec.describe Shaolin::HTTP::Controller do
     expect(status).to eq(201)
     expect(headers["location"]).to eq("/things/new")
   end
+
+  it "#30 bad_request / server_error helpers return the error envelope" do
+    s400, _h, b400 = controller.bad_request("nope")
+    expect(s400).to eq(400)
+    expect(JSON.parse(b400.first).dig("error", "code")).to eq("bad_request")
+
+    s500, _h, b500 = controller.server_error
+    expect(s500).to eq(500)
+    expect(JSON.parse(b500.first).dig("error", "code")).to eq("internal_error")
+  end
 end

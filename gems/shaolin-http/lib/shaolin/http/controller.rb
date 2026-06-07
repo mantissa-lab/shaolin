@@ -79,6 +79,14 @@ module Shaolin
         error_response(404, "not_found", message)
       end
 
+      def bad_request(message = "bad request")
+        error_response(400, "bad_request", message)
+      end
+
+      def server_error(message = "internal error")
+        error_response(500, "internal_error", message)
+      end
+
       def unprocessable(details)
         Response.new(422, JSON_HEADERS.dup, [JSON.generate(error: { code: "validation", details: details })])
       end

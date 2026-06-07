@@ -100,7 +100,15 @@ All return a `Shaolin::HTTP::Response` (chainable `.cookie` / `.header`); the ro
 | `created` | `created(data, location: nil)` | 201 JSON; sets `location` header if given |
 | `no_content` | `no_content` | 204, empty body/headers |
 | `not_found` | `not_found(message = "not found")` | 404 error contract |
+| `bad_request` | `bad_request(message = "bad request")` | 400 error contract |
+| `server_error` | `server_error(message = "internal error")` | 500 error contract |
 | `unprocessable` | `unprocessable(details)` | 422 `{ error: { code: "validation", details: } }` |
+
+> **That is the complete set.** There is **no** Sinatra/Rails-style `status(code)` builder, no
+> `render`, no `head`. To set a status, pass it: `json(data, status: 422)`. To reach the buses use the
+> `command_bus` / `query_bus` / `event_store` reader methods above — **not** a `Deps[:...]` locator
+> (`Deps` is dry-auto_inject keyword injection, `include Deps["component"]`, a different thing). To
+> dispatch another module's command, use `dispatch("mod.command", ...)` (see Modules).
 
 ```ruby
 def login(_req)
