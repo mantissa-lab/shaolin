@@ -22,6 +22,13 @@ RSpec.describe Shaolin::Redis::Store do
     expect(store.decrement("hits", by: 2)).to eq(3)
   end
 
+  it "sets a TTL on first increment (fixed-window counter for rate limits)" do
+    expect(store.increment("win", ttl: 60)).to eq(1)
+    ttl = pool.with { |r| r.ttl("t:store:win") }
+    expect(ttl).to be > 0
+    expect(ttl).to be <= 60
+  end
+
   it "supports hash fields as a 'row' with JSON values" do
     store.hset("session:abc", "user_id", "u-1")
     store.hset("session:abc", "roles", %w[admin editor])
