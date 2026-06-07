@@ -1,5 +1,6 @@
 require "shaolin/rabbitmq"
 require "shaolin/messaging"
+require "shaolin/core"
 require "json"
 
 RSpec.describe Shaolin::RabbitMQ do
@@ -22,6 +23,18 @@ RSpec.describe Shaolin::RabbitMQ do
 
     it "is a Shaolin::Messaging::Publisher (drop-in for the in-memory one)" do
       expect(described_class.new(exchange: Object.new)).to be_a(Shaolin::Messaging::Publisher)
+    end
+
+    it "fast-fails publishes through a circuit breaker during a broker brownout (#25)" do
+      flaky = Class.new do
+        def publish(_payload, routing_key:) = raise("broker down")
+      end.new
+      breaker = Shaolin::CircuitBreaker.new(threshold: 1, reset_timeout: 30)
+      publisher = described_class.new(exchange: flaky, breaker: breaker)
+      event = Shaolin::Messaging::IntegrationEvent.new(event_type: "x.y", payload: {})
+
+      expect { publisher.publish(event) }.to raise_error("broker down")                       # trips it
+      expect { publisher.publish(event) }.to raise_error(Shaolin::CircuitBreaker::OpenError)  # now fast-fails
     end
   end
 

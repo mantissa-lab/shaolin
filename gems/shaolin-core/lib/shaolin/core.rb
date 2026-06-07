@@ -1,5 +1,6 @@
 require_relative "core/version"
 require_relative "errors"
+require_relative "circuit_breaker"
 require_relative "inflector"
 require_relative "kernel"
 require_relative "config"
