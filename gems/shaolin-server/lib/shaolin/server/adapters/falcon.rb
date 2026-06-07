@@ -2,14 +2,18 @@ require "async"
 require "async/http/endpoint"
 require "falcon"
 require "protocol/rack"
+require_relative "../timeout"
 
 module Shaolin
   module Server
     module Adapters
       # Falcon adapter (default, async/fiber-per-request). `start` blocks running
-      # the async reactor until stopped.
+      # the async reactor until stopped. A configured request_timeout wraps the
+      # app in a cooperative per-request deadline (frees the fiber + DB connection
+      # on a slow handler).
       class Falcon
         def start(rack_app, config)
+          rack_app = Timeout.new(rack_app, config.request_timeout) if config.request_timeout
           app = Protocol::Rack::Adapter.new(rack_app)
           endpoint = Async::HTTP::Endpoint.parse("http://#{config.host}:#{config.port}")
           server = ::Falcon::Server.new(app, endpoint)
