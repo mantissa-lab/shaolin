@@ -28,7 +28,9 @@
 - **Agent tools:** `shaolin describe --json` (machine-readable map of all modules: commands,
   events, imports, exports — load this to understand the whole app), `shaolin schemas`
   (command/event surface), `shaolin lint` (isolation check — flags cross-module reach-ins, including
-  in reactors), `shaolin graph` (module dependency graph), `shaolin projections rebuild [name]`
+  in reactors; also warns on app code OUTSIDE app/modules that reads `Shaolin::Kernel[...]` or another
+  module's constants — `--strict`/`SHAOLIN_LINT_STRICT=1` fails on those), `shaolin graph` (module
+  dependency graph), `shaolin projections rebuild [name]`
   (replay events into read models), `shaolin g module <name> --es` (event-sourced CQRS module; default
   is CRUD), `shaolin g module <name> --es --reactor` (also scaffold an async reactor + spec),
   `shaolin g field <module> <name>:<type>` (add-column migration + edit checklist),

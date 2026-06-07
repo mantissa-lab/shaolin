@@ -85,6 +85,48 @@ RSpec.describe Shaolin::CLI::Isolation do
     end
   end
 
+  describe "#outside_violations (#17 — app code outside the module graph)" do
+    it "flags Kernel internals + cross-module refs outside app/modules; exempts config/bin/spec" do
+      Dir.mktmpdir do |root|
+        modules = File.join(root, "app/modules")
+        write(modules, "billing/invoice.rb", "module Billing; class Invoice; end; end")
+        # a god-orchestrator outside the module graph: reaches the Kernel + a module's constant
+        write(root, "app/telegram/ingress.rb", <<~RUBY)
+          class Ingress
+            def call
+              Shaolin::Kernel["cqrs.command_bus"].call(Billing::Invoice.new)
+            end
+          end
+        RUBY
+        # a repo-root run entrypoint is also scanned (not under app/**)
+        write(root, "run_bot.rb", 'Shaolin::Kernel["llm.client"]')
+        # exempt: bootstrap/infra/tests legitimately touch the Kernel
+        write(root, "config/boot.rb", 'Shaolin::Kernel.register("x", 1)')
+        write(root, "bin/worker.rb", 'Shaolin::Kernel["jobs.outbox"]')
+        write(root, "spec/thing_spec.rb", 'Shaolin::Kernel["cqrs.event_store"]')
+
+        out = described_class.new(modules).outside_violations(root)
+        files = out.map(&:file)
+        rules = out.map(&:rule)
+
+        expect(rules).to include("kernel-internal-access", "outside-module-reference")
+        expect(files).to include("app/telegram/ingress.rb", "run_bot.rb")
+        expect(files).not_to include("config/boot.rb", "bin/worker.rb", "spec/thing_spec.rb")
+        # the module's own file is the per-module check's domain, not this one
+        expect(files).not_to include(a_string_starting_with("app/modules/"))
+      end
+    end
+
+    it "is empty when all app code lives inside modules" do
+      Dir.mktmpdir do |root|
+        modules = File.join(root, "app/modules")
+        write(modules, "billing/invoice.rb", "module Billing; class Invoice; def ok = Billing::Invoice; end; end")
+        write(root, "config/boot.rb", 'Shaolin::Kernel["x"]')
+        expect(described_class.new(modules).outside_violations(root)).to be_empty
+      end
+    end
+  end
+
   it "still flags a reactor that references another module's event CLASS" do
     Dir.mktmpdir do |root|
       modules = File.join(root, "app/modules")

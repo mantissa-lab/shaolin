@@ -206,17 +206,31 @@ module Shaolin
       end
 
       desc "lint", "Check module isolation (no cross-module reach-ins) — Prism static analysis"
+      method_option :strict, type: :boolean, default: false,
+                             desc: "promote outside-module warnings to failures (also SHAOLIN_LINT_STRICT=1)"
       def lint
         require_relative "isolation"
         modules_dir = File.join(Dir.pwd, "app/modules")
         raise Thor::Error, "no app/modules in #{Dir.pwd}" unless File.directory?(modules_dir)
 
-        violations = Isolation.new(modules_dir).violations
-        if violations.empty?
-          say "isolation OK — modules are self-contained", :green
+        iso = Isolation.new(modules_dir)
+        violations = iso.violations                       # module-internal: always hard errors
+        outside = iso.outside_violations(Dir.pwd)         # outside the graph: warn (or fail w/ --strict)
+        strict = options[:strict] || ENV["SHAOLIN_LINT_STRICT"] == "1"
+
+        violations.each { |v| say v.to_s, :red }
+        outside.each { |v| say "#{v} #{strict ? '' : '(warning)'}".strip, strict ? :red : :yellow }
+
+        if outside.any? && !strict
+          say "#{outside.size} non-module finding(s) — code outside app/modules has no isolation " \
+              "enforcement; move it into a module, or run `shaolin lint --strict` to fail on these", :yellow
+        end
+
+        failures = violations.size + (strict ? outside.size : 0)
+        if failures.zero?
+          say(outside.empty? ? "isolation OK — modules are self-contained" : "no module-isolation violations", :green)
         else
-          violations.each { |v| say v.to_s, :red }
-          raise Thor::Error, "#{violations.size} isolation violation(s)"
+          raise Thor::Error, "#{failures} isolation violation(s)"
         end
       end
 
