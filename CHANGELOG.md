@@ -9,6 +9,15 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### HTTP rate limiting (issue #25, part 1)
+
+- `Shaolin::HTTP::RateLimit` — a fixed-window rate-limit middleware backed by any `Shaolin::Store`
+  (Redis in prod, `Store::Memory` in tests). Wire via the middleware hook with `limit:`/`window:` and an
+  optional `key:` (default client IP; pass a lambda for per-identity/tenant limits); past the limit it
+  returns 429 + `Retry-After`, and adds `X-RateLimit-*` headers. `Store#increment` gained `ttl:` (atomic
+  expiry-on-first-increment — the fixed-window counter primitive). Circuit breakers (the other half of
+  #25) are a follow-up.
+
 ### Server-level request timeout (issue #21)
 
 - `SHAOLIN_REQUEST_TIMEOUT` (seconds) bounds each request on the Falcon adapter via a **cooperative**

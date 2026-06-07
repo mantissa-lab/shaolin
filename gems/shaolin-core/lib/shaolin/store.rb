@@ -11,7 +11,9 @@ module Shaolin
     def get(_key) = raise NotImplementedError
     def delete(_key) = raise NotImplementedError
     def exists?(_key) = raise NotImplementedError
-    def increment(_key, by: 1) = raise NotImplementedError
+    # `ttl:` sets an expiry when the counter is first created — the canonical
+    # atomic primitive for fixed-window counters / rate limits.
+    def increment(_key, by: 1, ttl: nil) = raise NotImplementedError
     def decrement(_key, by: 1) = raise NotImplementedError
     def hset(_key, _field, _value) = raise NotImplementedError
     def hget(_key, _field) = raise NotImplementedError
@@ -41,7 +43,7 @@ module Shaolin
       def delete(key) = @kv.delete(key.to_s) ? 1 : 0
       def exists?(key) = @kv.key?(key.to_s) || @hashes.key?(key.to_s)
 
-      def increment(key, by: 1) = (@kv[key.to_s] = ((@kv[key.to_s] || "0").to_i + by).to_s).to_i
+      def increment(key, by: 1, ttl: nil) = (@kv[key.to_s] = ((@kv[key.to_s] || "0").to_i + by).to_s).to_i # ttl: no-op in-memory
       def decrement(key, by: 1) = increment(key, by: -by)
 
       def hset(key, field, value)

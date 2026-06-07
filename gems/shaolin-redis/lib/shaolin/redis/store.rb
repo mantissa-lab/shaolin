@@ -34,7 +34,16 @@ module Shaolin
       def exists?(key) = @pool.with { |r| r.exists?(k(key)) }
 
       # --- counters (native integer) ---
-      def increment(key, by: 1) = @pool.with { |r| r.incrby(k(key), by) }
+      # `ttl:` sets the expiry on first creation (count == by) — atomic
+      # fixed-window counter for rate limits.
+      def increment(key, by: 1, ttl: nil)
+        @pool.with do |r|
+          count = r.incrby(k(key), by)
+          r.expire(k(key), ttl) if ttl && count == by
+          count
+        end
+      end
+
       def decrement(key, by: 1) = @pool.with { |r| r.decrby(k(key), by) }
 
       # --- hashes (JSON field values) — a "row" with named fields ---
