@@ -95,9 +95,11 @@ cd gems/shaolin-core && bundle exec rspec   # per-gem suites
 bundle exec ruby examples/demo/verify.rb    # the demo, end-to-end
 ```
 
-See [`llms.txt`](llms.txt) and [`AGENTS.md`](AGENTS.md) to drive shaolin as an agent,
-[`CHANGELOG.md`](CHANGELOG.md) for what changed recently / upgrading, and
-`docs/superpowers/specs/` for the design specs.
+**Full reference:** [`docs/GUIDE.md`](docs/GUIDE.md) — the complete, current guide (every layer + best
+practices), and [`llms.txt`](llms.txt) for the condensed agent map. Also [`AGENTS.md`](AGENTS.md),
+[`CHANGELOG.md`](CHANGELOG.md), and [`docs/EVENTS.md`](docs/EVENTS.md) (event evolution + operating the
+store at scale). The pre-build design docs under `docs/superpowers/specs/` are **historical** — GUIDE.md
+and llms.txt are the source of truth.
 
 ## License
 

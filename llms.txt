@@ -8,6 +8,8 @@
 > be operated by AI agents: deterministic conventions, generators, explicit requires, machine-
 > readable contracts.
 
+> Full reference (every layer + best practices): **`docs/GUIDE.md`**. This file is the condensed map.
+
 ## Build an app
 
 - **One gem, from git.** The umbrella `shaolin` gem pulls the whole stack. Distributed via private
