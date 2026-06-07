@@ -9,6 +9,27 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### HTTP Response abstraction + cookies (issues #13, #12)
+
+- Controller actions return a `Shaolin::HTTP::Response` value object instead of raw Rack tuples.
+  `json`/`text`/`created`/`no_content`/`render_result` build one; chain `.cookie(name, value, **opts)`
+  (secure defaults: HttpOnly + SameSite=Lax + Secure), `.delete_cookie`, `.header(k, v)`; or the
+  `json(data, status:, headers:, cookies:)` keyword form. The router renders it; **raw tuples still work**
+  (Response `to_ary`-destructures as `[status, headers, body]`, so existing actions/specs are unchanged).
+  `Request#cookies` reads cookies (symbol-keyed). It's **immutable-per-action** (a fresh object, no
+  shared state) — fiber-safe under Falcon, unlike a mutable `response` accessor. CORS/security headers
+  belong in the middleware hook, not per-action. (#12 — cookie/header helpers — folds in here.)
+
+### LLM TTS/STT audio port (issue #14)
+
+- `Shaolin::LLM::Client#speak(text, voice:, format:)` (TTS → audio bytes) and
+  `#transcribe(audio_bytes, language:)` (STT → text) on the OpenAI adapter, sharing the same
+  timeout/retry/`HTTPError`/concurrency layer as `complete`. `speak` is sync by default
+  (`/audio/speech` returns bytes); async/job-poll backends are opt-in via
+  `OpenAI.new(tts_async: { result_path:, done:, poll_interval:, max_wait: })` (submit → poll → bytes,
+  no hand-rolled polling). `transcribe` is a multipart upload to `/audio/transcriptions`. `InMemory`
+  scripts `speak:`/`transcribe:` for network-free tests.
+
 ### Lint reaches outside app/modules (issue #17)
 
 - `shaolin lint` now also scans app code **outside** the module graph (everything under the project

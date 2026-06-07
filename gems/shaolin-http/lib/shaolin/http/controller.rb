@@ -1,5 +1,6 @@
 require "json"
 require "shaolin/core"
+require_relative "response"
 
 module Shaolin
   module HTTP
@@ -53,18 +54,25 @@ module Shaolin
       def query_bus   = Shaolin::Kernel["cqrs.query_bus"]
       def event_store = Shaolin::Kernel["cqrs.event_store"]
 
-      def json(data, status: 200)
-        [status, JSON_HEADERS.dup, [JSON.generate(data)]]
+      # All helpers return a Shaolin::HTTP::Response (chainable: `.cookie`/`.header`);
+      # the router renders it. `headers:`/`cookies:` attach extra headers/cookies
+      # without dropping to a raw tuple.
+      def json(data, status: 200, headers: {}, cookies: {})
+        Response.new(status, JSON_HEADERS.merge(headers), [JSON.generate(data)]).cookies(cookies)
+      end
+
+      def text(body, status: 200, headers: {})
+        Response.new(status, { "content-type" => "text/plain; charset=utf-8" }.merge(headers), [body.to_s])
       end
 
       def created(data, location: nil)
         headers = JSON_HEADERS.dup
         headers["location"] = location if location
-        [201, headers, [JSON.generate(data)]]
+        Response.new(201, headers, [JSON.generate(data)])
       end
 
       def no_content
-        [204, {}, []]
+        Response.new(204, {}, [])
       end
 
       def not_found(message = "not found")
@@ -72,7 +80,7 @@ module Shaolin
       end
 
       def unprocessable(details)
-        [422, JSON_HEADERS.dup, [JSON.generate(error: { code: "validation", details: details })]]
+        Response.new(422, JSON_HEADERS.dup, [JSON.generate(error: { code: "validation", details: details })])
       end
 
       # Translate a dry-monads Result to an HTTP response.
@@ -96,7 +104,7 @@ module Shaolin
       end
 
       def error_response(status, code, detail)
-        [status, JSON_HEADERS.dup, [JSON.generate(error: { code: code, message: detail }.compact)]]
+        Response.new(status, JSON_HEADERS.dup, [JSON.generate(error: { code: code, message: detail }.compact)])
       end
     end
   end

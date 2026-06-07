@@ -35,6 +35,13 @@ RSpec.describe Shaolin::LLM do
     it "is a Shaolin::LLM::Client" do
       expect(described_class.new).to be_a(Shaolin::LLM::Client)
     end
+
+    it "scripts speak/transcribe for network-free audio tests" do
+      llm = described_class.new(speak: ["AUDIO"], transcribe: ["hello world"])
+      expect(llm.speak("hi", voice: "alloy")).to eq("AUDIO")
+      expect(llm.transcribe("WAV", language: "en")).to eq("hello world")
+      expect(llm.calls.map { |c| c[:audio] }).to eq(%i[speak transcribe])
+    end
   end
 
   describe Shaolin::LLM::OpenAI do
@@ -199,6 +206,24 @@ RSpec.describe Shaolin::LLM do
 
       Array.new(4) { Thread.new { llm.complete(messages: []) } }.each(&:join)
       expect(peak.value).to eq(1) # never more than 1 concurrent call past the cap
+    end
+
+    it "speak: POSTs /audio/speech and returns the audio bytes (sync)" do
+      stub_http(res("200", "AUDIOBYTES"))
+      expect(described_class.new(api_key: "t").speak("hello", voice: "alloy")).to eq("AUDIOBYTES")
+    end
+
+    it "transcribe: multipart POST /audio/transcriptions and returns the text" do
+      stub_http(res("200", '{"text":"hi there"}'))
+      expect(described_class.new(api_key: "t").transcribe("WAVBYTES", language: "en")).to eq("hi there")
+    end
+
+    it "speak: async — submits a job, polls the result, returns bytes when ready" do
+      stub_http(res("202", '{"job_id":"j1"}'), res("202", '{"status":"pending"}'), res("200", "WAVBYTES"))
+      llm = described_class.new(api_key: "t", tts_async: {
+        result_path: "/audio/result/{id}", done: ->(r) { r.code == "200" }, poll_interval: 0, max_wait: 5
+      })
+      expect(llm.speak("hi")).to eq("WAVBYTES")
     end
 
     it "completes against the live API when OPENAI_API_KEY is set", :live do

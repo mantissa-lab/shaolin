@@ -19,8 +19,10 @@ module Shaolin
 
       attr_reader :calls
 
-      def initialize(*responses)
+      def initialize(*responses, speak: [], transcribe: [])
         @responses = responses.flatten
+        @speak = speak.dup
+        @transcribe = transcribe.dup
         @calls = []
       end
 
@@ -30,6 +32,16 @@ module Shaolin
         raise "InMemory LLM: no scripted response left (call ##{@calls.size})" unless response
 
         response.is_a?(Completion) ? response : Completion.new(**response)
+      end
+
+      def speak(text, voice: nil, format: nil, model: nil)
+        @calls << { audio: :speak, text: text, voice: voice, format: format, model: model }
+        @speak.shift || raise("InMemory LLM: no scripted speak response left")
+      end
+
+      def transcribe(audio, language: nil, model: nil)
+        @calls << { audio: :transcribe, bytes: audio, language: language, model: model }
+        @transcribe.shift || raise("InMemory LLM: no scripted transcribe response left")
       end
     end
   end

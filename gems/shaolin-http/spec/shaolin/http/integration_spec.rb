@@ -191,6 +191,39 @@ RSpec.describe "shaolin-http integration" do
     end
   end
 
+  it "#13 sets a cookie via the Response builder and reads it back via Request#cookies" do
+    Dir.mktmpdir do |root|
+      controllers = File.join(root, "app/modules/sess/controllers")
+      FileUtils.mkdir_p(controllers)
+      File.write(File.join(root, "app/modules/sess/module.rb"), 'Shaolin.module("sess") {}')
+      File.write(File.join(controllers, "sess_controller.rb"), <<~RUBY)
+        module Sess
+          module Controllers
+            class SessController < Shaolin::HTTP::Controller
+              routes do
+                post "/login", :login
+                get "/whoami", :whoami
+              end
+              def login(_req) = json({ ok: true }).cookie(:crm_auth, "tok-123", max_age: 60)
+              def whoami(req) = json({ token: req.cookies[:crm_auth] })
+            end
+          end
+        end
+      RUBY
+
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!(modules_dir: File.join(root, "app/modules"))
+      Shaolin::App.new(root: root).boot!
+      session = Rack::Test::Session.new(Shaolin::Kernel["http.app"])
+
+      session.post("/login")
+      expect(session.last_response.headers["set-cookie"]).to include("crm_auth=tok-123", "HttpOnly")
+
+      session.get("/whoami", {}, "HTTP_COOKIE" => "crm_auth=tok-123")
+      expect(JSON.parse(session.last_response.body)["token"]).to eq("tok-123")
+    end
+  end
+
   it "#18 guards a route with a named authenticator: 401 without, identity in Context with" do
     Dir.mktmpdir do |root|
       controllers = File.join(root, "app/modules/admin/controllers")

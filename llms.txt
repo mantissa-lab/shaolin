@@ -151,7 +151,11 @@
   response carries `x-request-id` (propagated from an inbound header).
 - **Request bodies.** `Shaolin::HTTP::Request#params` parses JSON, `multipart/form-data`, and
   `application/x-www-form-urlencoded` (symbol keys); uploaded files surface via `req.files`
-  (`{ field => { filename:, type:, bytes:, tempfile: } }`).
+  (`{ field => { filename:, type:, bytes:, tempfile: } }`); `req.cookies` reads request cookies.
+- **Responses.** Actions return a `Shaolin::HTTP::Response` (`json`/`text`/`created`/`no_content`/
+  `render_result` build it); chain `.cookie(name, value, **opts)` / `.delete_cookie` / `.header(k,v)`,
+  or `json(data, status:, headers:, cookies:)`. Raw Rack tuples still work. CORS/security headers go in
+  the middleware hook, not per-action.
 - **Unified logger `Shaolin::Log`** — one structured pipeline for everything (HTTP request line, worker,
   scheduler, app): `Shaolin::Log.info("msg", **fields)`, leveled (`SHAOLIN_LOG_LEVEL`), JSON in
   production / pretty in dev, fiber-local context (`Shaolin::Log.with(run_id:) { }`) + auto
@@ -198,7 +202,10 @@ Build LLM harnesses as **event-sourced gate state machines** — durable, audita
   `OpenAI.new(default_params:)` so a reasoning reply isn't truncated by the server default max_tokens).
   `Completion` carries `text`/`reasoning`/`tool_calls`/`usage`/`data`/`finish_reason` (`truncated?` on
   `"length"`); `OpenAI.new(max_concurrency: N)` bounds in-flight calls (semaphore) against a
-  capacity-limited provider. `:llm` provider → `llm.client`. Realtime/audio is a later port.
+  capacity-limited provider. **Audio:** `client.speak(text, voice:, format:)` (TTS→bytes) +
+  `client.transcribe(audio_bytes, language:)` (STT→text), same reliability layer; async TTS via
+  `OpenAI.new(tts_async: {...})`; `InMemory` scripts `speak:`/`transcribe:`. `:llm` provider →
+  `llm.client`. Realtime streaming is a separate substrate.
   **Reasoning:** `Completion#reasoning` carries the model's thinking trace — mapped from a
   `reasoning_content`/`reasoning` field automatically, or lifted out of an inline `<think>…</think>`
   block when you opt in with `OpenAI.new(reasoning_tag: "think")` (off by default; for Qwen-style
