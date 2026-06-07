@@ -9,6 +9,17 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Lint reaches outside app/modules (issue #17)
+
+- `shaolin lint` now also scans app code **outside** the module graph (everything under the project
+  except `config/`, `bin/`, `spec/`, `test/`, vendor dirs, and `app/modules/` itself — repo-root
+  entrypoints included) and flags two escape-hatch smells: **`kernel-internal-access`** (reading
+  `Shaolin::Kernel[...]` internals) and **`outside-module-reference`** (touching another module's
+  namespace). These are **warnings by default** (loud, with file:line) — exit 0 so existing apps aren't
+  broken — and `--strict` (or `SHAOLIN_LINT_STRICT=1`) promotes them to failures for CI. Module-internal
+  isolation violations remain hard errors. So a god-orchestrator in `app/telegram/` is no longer
+  invisible; the framework's "everything is a bounded module" opinion has walls you can opt into.
+
 ### Declarative per-route auth (issue #18)
 
 - Routes declare their authenticator inline — `post "/admin/x", :create, auth: :admin` (or a

@@ -27,7 +27,56 @@ module Shaolin
         end
       end
 
+      # App code OUTSIDE the module graph escapes the isolation guarantees: it can
+      # reach `Shaolin::Kernel[...]` internals or another module's constants with
+      # zero enforcement (#17). This scans everything under `app_root` except the
+      # legitimate bootstrap/infra (`config/`, `bin/`) and test/vendor dirs, and
+      # flags those two smells — so a god-orchestrator in `app/telegram/` is loud,
+      # not silent. Returned as separate findings (warn by default; `--strict`
+      # promotes them to a failure).
+      EXEMPT_DIRS = %w[config bin spec test vendor tmp .bundle .git node_modules].freeze
+
+      def outside_violations(app_root)
+        root = File.expand_path(app_root)
+        module_root = File.expand_path(@modules_dir)
+        namespaces = @namespaces.values
+
+        Dir.glob(File.join(root, "**", "*.rb")).flat_map do |file|
+          next [] if file.start_with?("#{module_root}/") # the per-module check's domain
+          next [] if exempt?(file, root)
+
+          scan_outside(file, root, namespaces)
+        end
+      end
+
       private
+
+      def exempt?(file, root)
+        rel = file.sub("#{root}/", "")
+        EXEMPT_DIRS.include?(rel.split("/").first)
+      end
+
+      def scan_outside(file, root, namespaces)
+        result = Prism.parse_file(file)
+        return [] unless result.success?
+
+        walker = Walker.new
+        result.value.accept(walker)
+        rel = file.sub("#{root}/", "")
+        found = []
+
+        walker.kernel_refs.uniq.each do |line|
+          found << Violation.new(rel, line, "kernel-internal-access",
+                                 "reads Shaolin::Kernel internals from outside a module — move this into a module (with a manifest) or config/")
+        end
+        walker.constants.uniq.each do |name, line|
+          next unless namespaces.include?(name)
+
+          found << Violation.new(rel, line, "outside-module-reference",
+                                 "references module namespace `#{name}` from outside the module graph (no isolation enforcement here)")
+        end
+        found
+      end
 
       def scan(file, dir, others, declared)
         result = Prism.parse_file(file)
@@ -110,12 +159,14 @@ module Shaolin
           @constants = []
           @requires = []
           @imports = []
+          @kernel_refs = []
         end
 
-        attr_reader :constants, :requires, :imports
+        attr_reader :constants, :requires, :imports, :kernel_refs
 
         def visit_constant_path_node(node)
           @constants << [root_name(node), node.location.start_line]
+          @kernel_refs << node.location.start_line if full_name(node) == "Shaolin::Kernel"
           super
         end
 
@@ -135,6 +186,12 @@ module Shaolin
           n = node
           n = n.parent while n.is_a?(Prism::ConstantPathNode) && n.parent
           n.respond_to?(:name) ? n.name.to_s : n.to_s
+        end
+
+        def full_name(node)
+          node.full_name
+        rescue StandardError
+          nil
         end
       end
     end
