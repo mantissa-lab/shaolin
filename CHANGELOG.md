@@ -9,6 +9,15 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### LLM concurrency cap (#16) + Conversation.session kernel defaults (#15)
+
+- **Provider concurrency (#16):** `OpenAI.new(max_concurrency: N)` bounds in-flight calls with a
+  `Concurrent::Semaphore` — `complete` (and any adapter HTTP call) blocks past the cap instead of every
+  app hand-rolling a semaphore. Retries happen inside the held permit, so a retry can't open a
+  connection beyond the cap (prevents the thundering-herd that oversubscribes a capacity-bound model).
+- **`Conversation.session(id:)` (#15):** `llm` / `repo` / `command_bus` now default to the registered
+  kernel providers, so the common call site is just `MyConvo.session(id:)`; explicit args still override.
+
 ### HTTP multipart/form-data + form uploads (issue #8)
 
 - `Shaolin::HTTP::Request` now parses `multipart/form-data` and
