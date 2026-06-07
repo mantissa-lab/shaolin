@@ -17,10 +17,10 @@ module Shaolin
     # auto_schema: create the event-store schema at boot (advisory-locked).
     # Convenient in dev/test; set false in production and run `shaolin migrate`
     # as a release step instead.
-    def self.register_provider!(config:, isolation_level: :thread, auto_schema: true)
+    def self.register_provider!(config:, isolation_level: :thread, auto_schema: true, replica_config: nil)
       Shaolin.register_provider(:active_record) do
         start do
-          Connection.establish!(config)
+          Connection.establish!(config, replica: replica_config)
           Connection.isolation_level = isolation_level
           Connection.with_advisory_lock(SCHEMA_LOCK_KEY) { EventStoreSchema.create! } if auto_schema
           Shaolin::Health.register("database") { Connection.connected? }

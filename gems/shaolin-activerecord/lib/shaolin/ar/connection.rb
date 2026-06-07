@@ -14,14 +14,41 @@ module Shaolin
       #   checkout_timeout (5s)           — bound the wait for a free connection
       #   reaping_frequency (60s)         — reclaim connections leaked by crashed
       #                                     threads / dropped by a DB failover
-      def self.establish!(config)
+      # `replica:` (optional) wires a read-only replica via AR role routing: ALL
+      # writes (event append + sync projections + outbox) stay on the primary
+      # (writing role), so the atomic outbox is unaffected; only code that opts in
+      # with `Shaolin::AR.reading { ... }` reads from the replica. Without it, a
+      # plain single-DB connection as before.
+      def self.establish!(config, replica: nil)
         defaults = {
           pool: Integer(ENV.fetch("DB_POOL", "5")),
           checkout_timeout: Float(ENV.fetch("DB_CHECKOUT_TIMEOUT", "5")),
           reaping_frequency: Integer(ENV.fetch("DB_REAPING_FREQUENCY", "60"))
         }
-        ::ActiveRecord::Base.establish_connection(defaults.merge(config.transform_keys(&:to_sym)))
+        primary = defaults.merge(config.transform_keys(&:to_sym))
+
+        if replica
+          env = ::ActiveRecord::ConnectionHandling::DEFAULT_ENV.call
+          rep = defaults.merge(replica.transform_keys(&:to_sym))
+          ::ActiveRecord::Base.configurations = {
+            env => { "primary" => primary.transform_keys(&:to_s), "replica" => rep.transform_keys(&:to_s) }
+          }
+          ::ActiveRecord::Base.connects_to(database: { writing: :primary, reading: :replica })
+          @replica = true
+        else
+          ::ActiveRecord::Base.establish_connection(primary)
+          @replica = false
+        end
         self
+      end
+
+      # Run a block's queries against the read replica (when configured) — for
+      # heavy/analytical reads that shouldn't compete with the write path. A no-op
+      # passthrough when no replica is wired, so app code can use it unconditionally.
+      def self.reading(&block)
+        return yield unless @replica
+
+        ::ActiveRecord::Base.connected_to(role: :reading, &block)
       end
 
       # Serialize a critical section across processes/replicas via a Postgres

@@ -9,6 +9,15 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Read-replica routing (issue #27)
+
+- `Shaolin::AR.register_provider!(config:, replica_config:)` wires a read replica via AR role routing.
+  **All writes stay on the primary** (writing role — event append + sync projections + outbox), so the
+  atomic outbox is untouched; only code that opts in with `Shaolin::AR.reading { … }` reads from the
+  replica (a no-op passthrough when no replica is configured, so query code can wrap heavy reads
+  unconditionally). Single-DB remains the default. (Replica-lag behavior is operator-verified; the gem
+  verifies the routing wiring.)
+
 ### Async projections (issue #22)
 
 - A projection can opt out of the append transaction with `async` — instead of running synchronously
