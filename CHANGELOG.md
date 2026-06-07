@@ -9,6 +9,18 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Load walls + visibility: admission control, metrics, startup banner (issues #20, #24, #19)
+
+- **Admission control / load-shedding (#20):** opt-in `SHAOLIN_WEB_CONCURRENCY` (or
+  `HTTP.register_provider!(max_concurrency:)`) bounds in-flight requests with a semaphore; past the cap
+  the server returns **503 `overloaded`** immediately instead of queueing behind a saturated DB pool
+  (the connection-pool cliff). Set it ≈ `DB_POOL`. Off by default; use the new metrics to size it.
+- **Load metrics (#24):** `/metrics` now reports the cliff-predicting signals — `shaolin_db_pool{state}`
+  (size/busy/idle/waiting), `shaolin_http_in_flight` + `shaolin_http_concurrency_max`, and
+  `shaolin_outbox_oldest_pending_seconds` (worker lag) — alongside the existing outbox depth.
+- **Startup banner (#19):** `shaolin server` emits a structured `server.started` line (url, adapter, env,
+  db_pool, web_concurrency, graceful_timeout) — matching `worker`/`scheduler` — so a boot isn't silent.
+
 ### HTTP Response abstraction + cookies (issues #13, #12)
 
 - Controller actions return a `Shaolin::HTTP::Response` value object instead of raw Rack tuples.

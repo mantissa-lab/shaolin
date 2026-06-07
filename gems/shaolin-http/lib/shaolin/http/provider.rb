@@ -16,12 +16,14 @@ module Shaolin
     # controllers + DTOs. `modules_dir` is where to scan controllers for DTO
     # linking (default: <cwd>/app/modules). Keep it off in production unless you
     # mean to expose docs.
-    def self.register_provider!(middleware: [], swagger: false, modules_dir: nil, auth: {})
+    def self.register_provider!(middleware: [], swagger: false, modules_dir: nil, auth: {}, max_concurrency: nil)
+      cap = max_concurrency || (ENV["SHAOLIN_WEB_CONCURRENCY"] && Integer(ENV["SHAOLIN_WEB_CONCURRENCY"]))
       Shaolin.register_provider(:http) do
         start do
           containers = Shaolin::Kernel["kernel.containers"]
           openapi = (OpenAPI.generate(containers, modules_dir || File.join(Dir.pwd, "app/modules")) if swagger)
-          app = Router.build(containers, middleware: middleware, openapi: openapi, authenticators: auth)
+          app = Router.build(containers, middleware: middleware, openapi: openapi,
+                             authenticators: auth, max_concurrency: cap)
           Shaolin::Kernel.register("http.app", app)
         end
       end
