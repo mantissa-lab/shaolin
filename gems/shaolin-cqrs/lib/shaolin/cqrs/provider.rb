@@ -78,6 +78,9 @@ module Shaolin
       container.keys.grep(/\Aprojections\./).each do |key|
         projection = container[key]
         next unless projection.class.respond_to?(:subscribed_events)
+        # Async projections run off the append tx — the :jobs provider wires them
+        # through the outbox instead of this synchronous subscription.
+        next if projection.class.respond_to?(:async?) && projection.class.async?
 
         events = projection.class.subscribed_events
         event_store.subscribe(projection, to: events) unless events.empty?

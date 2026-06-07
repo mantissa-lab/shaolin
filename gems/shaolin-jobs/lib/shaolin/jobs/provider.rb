@@ -21,6 +21,29 @@ module Shaolin
 
           event_store = Shaolin::Kernel["cqrs.event_store"]
           Shaolin::Jobs.wire_reactors(event_store, outbox)
+          Shaolin::Jobs.wire_async_projections(event_store, outbox)
+        end
+      end
+    end
+
+    # Async projections (Projection.async) run off the append tx, driven through
+    # the outbox exactly like reactors: enqueue on their events, the worker runs
+    # `projection.call(event)`. The :cqrs provider skips these from its sync
+    # subscription, so each runs exactly once — asynchronously, eventually
+    # consistent, with idempotent upserts making at-least-once safe.
+    def self.wire_async_projections(event_store, outbox)
+      containers = Shaolin::Kernel.key?("kernel.containers") ? Shaolin::Kernel["kernel.containers"] : {}
+      containers.each_value do |container|
+        container.keys.grep(/\Aprojections\./).each do |key|
+          klass = container[key].class
+          next unless klass.respond_to?(:async?) && klass.async?
+
+          events = klass.subscribed_events
+          next if events.empty?
+
+          name = klass.name
+          enqueuer = ->(event) { outbox.enqueue(reactor: name, event: event) }
+          event_store.subscribe(enqueuer, to: events)
         end
       end
     end

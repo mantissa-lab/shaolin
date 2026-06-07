@@ -9,6 +9,15 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Async projections (issue #22)
+
+- A projection can opt out of the append transaction with `async` — instead of running synchronously
+  (read-your-write, but adding to the command's write latency + lock-hold), it's driven off the outbox by
+  `shaolin worker` (the :cqrs provider skips it; the :jobs provider enqueues it on its events). The read
+  model becomes **eventually consistent** in exchange for append-only write latency; idempotent upserts
+  make at-least-once safe. Sync stays the default — atomicity of sync projections is unchanged. Requires
+  the :jobs provider + a running worker.
+
 ### Worker throughput: LISTEN/NOTIFY wake + payload reuse (issue #23)
 
 - The worker no longer just polls: `Outbox#enqueue` fires a Postgres `NOTIFY` (delivered on commit), and
