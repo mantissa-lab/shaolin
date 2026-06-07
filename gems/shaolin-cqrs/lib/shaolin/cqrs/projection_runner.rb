@@ -6,12 +6,24 @@ module Shaolin
     # Read models are idempotent upserts, so replaying the full stream is safe
     # and deterministic.
     module ProjectionRunner
-      # Replay the events a single projection subscribes to.
-      def self.rebuild(event_store, projection)
+      # Replay the events a single projection subscribes to. RES reads lazily in
+      # pages, so memory stays bounded for a large stream. **Resumable**: pass
+      # `after:` (an event id) to continue past a checkpoint, and use the returned
+      # last-processed id as the next checkpoint — so a multi-million-event rebuild
+      # can stop/restart instead of always replaying from zero.
+      def self.rebuild(event_store, projection, after: nil)
         events = projection.class.subscribed_events
-        return if events.empty?
+        return after if events.empty?
 
-        event_store.read.of_type(events).each { |event| projection.call(event) }
+        spec = event_store.read.of_type(events)
+        spec = spec.from(after) if after
+
+        last = after
+        spec.each do |event|
+          projection.call(event)
+          last = event.event_id
+        end
+        last
       end
 
       # Rebuild every module's projections from the kernel's event store + containers.

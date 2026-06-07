@@ -81,3 +81,45 @@ Shaolin::Kernel.register("cqrs.event_mapper", mapper)   # before Shaolin::CQRS.r
 
 The event store is the source of truth; alternatively `shaolin projections rebuild` replays events
 into read models after a projection change.
+
+## Operating the event store at scale (#26)
+
+The `event_store_events` table grows monotonically — events are the source of truth and are never
+mutated. Three concerns at scale, and how shaolin handles them:
+
+### Rebuild is resumable (and per-stream parallelizable)
+`ProjectionRunner.rebuild` reads lazily in pages (RES paginates), so memory stays bounded even for a
+huge stream. It's **resumable**: pass `after:` an event id to continue past a checkpoint, and persist
+the returned last-processed id as the next checkpoint:
+
+```ruby
+checkpoint = load_checkpoint            # nil on first run
+loop do
+  checkpoint = Shaolin::CQRS::ProjectionRunner.rebuild(event_store, projection, after: checkpoint)
+  save_checkpoint(checkpoint)
+  break if done?                        # e.g. a fixed pass, or run continuously
+end
+```
+
+Rebuild different projections/modules **in parallel** by running `rebuild` (or `rebuild_all(only: mod)`)
+in separate processes — each is independent and idempotent (`ReadModel.project` is an upsert).
+
+### Partitioning (operator-applied DDL)
+For very large stores, partition `event_store_events` by time so old partitions can be detached/archived
+without touching the hot set. shaolin does **not** auto-apply this (it's a destructive, deployment-specific
+DDL); the recipe (Postgres declarative partitioning by `created_at`, monthly):
+
+```sql
+-- one-time, as a migration you own; convert or create partitioned:
+CREATE TABLE event_store_events_2026_06 PARTITION OF event_store_events
+  FOR VALUES FROM ('2026-06-01') TO ('2026-07-01');
+-- detach + archive a cold partition later:
+ALTER TABLE event_store_events DETACH PARTITION event_store_events_2026_01;
+```
+
+### Retention / archival
+Pruning events changes replay semantics — a projection rebuilt after a prune no longer sees the pruned
+history. So retention is **opt-in and deliberate**: only archive events whose aggregates are fully
+superseded by a snapshot or are business-irrelevant, and keep the archive replayable (e.g. moved to a
+cold partition / object storage), never silently `DELETE`d. When in doubt, keep them — storage is cheap,
+lost history isn't.

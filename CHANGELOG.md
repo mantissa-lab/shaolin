@@ -9,6 +9,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Event store at scale: resumable rebuild + partitioning/retention docs (issue #26)
+
+- `ProjectionRunner.rebuild(event_store, projection, after:)` is now **resumable** — it reads lazily in
+  pages (bounded memory) and returns the last-processed event id, so a multi-million-event rebuild can
+  checkpoint/restart instead of always replaying from zero; independent projections/modules rebuild in
+  parallel (each idempotent). `docs/EVENTS.md` documents a Postgres time-partitioning recipe (operator
+  DDL, not auto-applied) and a deliberate, replay-preserving retention/archival stance.
+
 ### Read-replica routing (issue #27)
 
 - `Shaolin::AR.register_provider!(config:, replica_config:)` wires a read replica via AR role routing.
