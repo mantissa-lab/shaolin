@@ -27,6 +27,11 @@ module Shaolin
         @env.select { |k, _| k.start_with?("HTTP_") }
       end
 
+      # Request cookies as a symbol-keyed hash (parsed from the Cookie header).
+      def cookies
+        @cookies ||= Rack::Utils.parse_cookies(@env).transform_keys(&:to_sym)
+      end
+
       def body
         @body ||= read_body
       end

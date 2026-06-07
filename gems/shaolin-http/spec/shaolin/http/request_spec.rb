@@ -36,4 +36,9 @@ RSpec.describe Shaolin::HTTP::Request do
     env = Rack::MockRequest.env_for("/x", method: "POST", input: "{}", "CONTENT_TYPE" => "application/json")
     expect(request_for(env).files).to eq({})
   end
+
+  it "parses the Cookie header into symbol-keyed cookies" do
+    env = Rack::MockRequest.env_for("/x", "HTTP_COOKIE" => "crm_auth=tok; theme=dark")
+    expect(request_for(env).cookies).to eq(crm_auth: "tok", theme: "dark")
+  end
 end

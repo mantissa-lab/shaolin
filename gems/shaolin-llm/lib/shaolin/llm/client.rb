@@ -16,6 +16,15 @@ module Shaolin
       def complete(messages:, tools: [], model: nil, response_format: nil, params: {})
         raise NotImplementedError, "#{self.class} must implement #complete"
       end
+
+      # Optional audio port (TTS/STT): text → audio bytes, audio bytes → text.
+      def speak(_text, voice: nil, format: nil, model: nil)
+        raise NotImplementedError, "#{self.class} does not implement #speak (TTS)"
+      end
+
+      def transcribe(_audio, language: nil, model: nil)
+        raise NotImplementedError, "#{self.class} does not implement #transcribe (STT)"
+      end
     end
   end
 end

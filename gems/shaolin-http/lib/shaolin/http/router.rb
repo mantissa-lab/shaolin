@@ -2,6 +2,7 @@ require "hanami/router"
 require "json"
 require "shaolin/core"
 require_relative "request"
+require_relative "response"
 require_relative "errors"
 require_relative "rewindable_input"
 require_relative "request_logger"
@@ -92,12 +93,16 @@ module Shaolin
           defs.each do |d|
             controller = d[:controller]
             action = d[:action]
-            endpoint = ->(env) { controller.public_send(action, Request.new(env)) }
+            endpoint = ->(env) { Router.render(controller.public_send(action, Request.new(env))) }
             endpoint = Router.guard(endpoint, authenticators[d[:auth]]) if d[:auth]
             public_send(d[:method], d[:path], to: endpoint)
           end
         end
       end
+
+      # Render an action's result: a Response → its Rack tuple; a raw Rack tuple
+      # (back-compat) passes through unchanged.
+      def self.render(result) = result.is_a?(Response) ? result.to_rack : result
 
       # Wrap an endpoint so the named authenticator runs first: nil identity → 401,
       # otherwise the identity is exposed via Shaolin::Context (cleared per request

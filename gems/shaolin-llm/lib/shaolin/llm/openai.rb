@@ -54,7 +54,7 @@ module Shaolin
       def initialize(api_key: ENV["OPENAI_API_KEY"], model: "gpt-4.1",
                      base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil,
                      open_timeout: 15, read_timeout: 600, max_retries: 2, retry_backoff: [0.5, 2.0],
-                     default_params: {}, max_concurrency: nil)
+                     default_params: {}, max_concurrency: nil, tts_async: nil)
         @api_key = api_key
         @model = model
         @base = base
@@ -69,6 +69,9 @@ module Shaolin
         # self-hosted model) so a worker pool can't oversubscribe it — complete()
         # blocks past the cap instead of every app hand-rolling a semaphore.
         @semaphore = max_concurrency && Concurrent::Semaphore.new(max_concurrency)
+        # Opt-in for async/job-based TTS backends: { result_path: "/audio/result/{id}",
+        # done: ->(res){...}, poll_interval:, max_wait: }. nil = sync /audio/speech.
+        @tts_async = tts_async
       end
 
       def complete(messages:, tools: [], model: nil, response_format: nil, params: {})
@@ -93,7 +96,79 @@ module Shaolin
         )
       end
 
+      # Text → audio bytes (TTS) via POST /audio/speech. Sync by default (the
+      # endpoint returns the audio inline); when `tts_async:` is configured, a 202
+      # job response is polled to completion behind this call. Shares the same
+      # timeout/retry/HTTPError/concurrency layer as `complete`.
+      def speak(text, voice: "alloy", format: "mp3", model: "tts-1")
+        body = { model: model, input: text, voice: voice, response_format: format }
+        res = audio_request(Net::HTTP::Post.new(URI("#{@base}/audio/speech")).tap do |r|
+          r["Content-Type"] = "application/json"
+          r.body = JSON.generate(body)
+        end)
+        return res.body unless res.code == "202" && @tts_async
+
+        poll_tts(res)
+      end
+
+      # Audio bytes → text (STT) via multipart POST /audio/transcriptions.
+      def transcribe(audio_bytes, language: nil, model: "whisper-1", filename: "audio.wav", content_type: "audio/wav")
+        boundary = "----shaolin#{object_id}"
+        fields = { model: model, language: language }.compact
+        req = Net::HTTP::Post.new(URI("#{@base}/audio/transcriptions"))
+        req["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
+        req.body = multipart_body(boundary, fields, filename, content_type, audio_bytes)
+        JSON.parse(audio_request(req).body)["text"]
+      end
+
       private
+
+      # Run a prepared request through the shared concurrency/retry/HTTPError layer,
+      # returning the raw Net::HTTPResponse (no JSON parse — audio bodies are bytes).
+      def audio_request(req)
+        uri = req.uri
+        with_concurrency do
+          with_retries do
+            req["Authorization"] = "Bearer #{@api_key}" if @api_key
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = (uri.scheme == "https")
+            http.open_timeout = @open_timeout
+            http.read_timeout = @read_timeout
+            res = http.request(req)
+            raise HTTPError.new(Integer(res.code), res.body.to_s[0, 500]) unless res.code.start_with?("2")
+
+            res
+          end
+        end
+      end
+
+      # Poll an async TTS job to completion, returning the audio bytes.
+      def poll_tts(submit_res)
+        cfg = @tts_async
+        id = (JSON.parse(submit_res.body) rescue {}).values_at("job_id", "id").compact.first
+        path = cfg[:result_path].sub("{id}", id.to_s)
+        interval = cfg[:poll_interval] || 1.0
+        deadline = monotonic + (cfg[:max_wait] || 120)
+        loop do
+          res = audio_request(Net::HTTP::Get.new(URI("#{@base}#{path}")))
+          return res.body if cfg[:done].call(res)
+          raise HTTPError.new(202, "TTS job #{id} not ready after #{cfg[:max_wait] || 120}s") if monotonic > deadline
+
+          sleep(interval)
+        end
+      end
+
+      def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      def multipart_body(boundary, fields, filename, content_type, bytes)
+        body = +""
+        fields.each do |name, value|
+          body << "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{value}\r\n"
+        end
+        body << "--#{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"#{filename}\"\r\n" \
+                "Content-Type: #{content_type}\r\n\r\n"
+        body.b + bytes.to_s.b + "\r\n--#{boundary}--\r\n".b
+      end
 
       # A structured-output request returns the JSON object as the message content;
       # parse it (symbol keys) onto Completion#data. nil if it isn't valid JSON.
