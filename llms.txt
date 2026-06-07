@@ -157,6 +157,10 @@
   with 503 instead of oversubscribing the pool (off by default). `SHAOLIN_REQUEST_TIMEOUT` (seconds)
   bounds each request on Falcon (cooperative async timeout → 503), freeing a hung handler's fiber + DB
   connection.
+- **WebSocket** (`Shaolin::HTTP::WebSocket`, on async-websocket, Falcon-native, domain-agnostic): server
+  `ws(req) { |socket| socket.on_message{|data,s| s.send(...)}; ... }` (any controller action upgrades),
+  and client `WebSocket.connect(url, headers:) { |socket| ... }` to any WS server (Asterisk ARI, feeds,
+  other services). Raw text/binary frames. The LLM realtime transport is one consumer of it.
 - **Metrics.** `/metrics` (Prometheus) reports `shaolin_up`, `shaolin_db_pool{state}` (size/busy/idle/
   waiting), `shaolin_http_in_flight`/`_concurrency_max`, outbox depth by status, and
   `shaolin_outbox_oldest_pending_seconds` (worker lag) — the signals that predict pool/queue saturation.

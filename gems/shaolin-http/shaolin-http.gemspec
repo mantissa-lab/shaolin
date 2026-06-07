@@ -13,4 +13,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "shaolin-core"
   spec.add_dependency "rack", "~> 3.0"
   spec.add_dependency "hanami-router", "~> 2.2"
+  spec.add_dependency "async-websocket", "~> 0.30" # Falcon-native WebSocket
 end

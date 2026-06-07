@@ -4,6 +4,7 @@ require_relative "realtime/event"
 require_relative "realtime/session"
 require_relative "realtime/in_memory"
 require_relative "realtime/openai"
+require_relative "realtime/web_socket_transport"
 
 module Shaolin
   module LLM
