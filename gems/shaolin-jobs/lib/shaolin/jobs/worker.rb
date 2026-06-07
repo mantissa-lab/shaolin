@@ -20,14 +20,23 @@ module Shaolin
     #   reactors. Tune `batch` (WORKER_BATCH) to bound how many jobs one run_once
     #   drains.
     class Worker
+      # `listen:` — when idle, wait on a Postgres NOTIFY (Outbox enqueues fire one)
+      # so a new job is picked up immediately instead of after the poll interval;
+      # polling remains the correctness floor (any missed NOTIFY is caught next
+      # tick). `prefer_payload:` — reconstruct the event from the outbox row's own
+      # payload instead of reloading it from the store per job (skips a round-trip;
+      # off by default since the store is canonical, e.g. after event upcasting).
       def initialize(event_store:, outbox: Outbox.new, batch: 20, tx_per_job: false,
-                     backoff: Outbox::DEFAULT_BACKOFF, max_attempts: Outbox::DEFAULT_BACKOFF.size)
+                     backoff: Outbox::DEFAULT_BACKOFF, max_attempts: Outbox::DEFAULT_BACKOFF.size,
+                     listen: true, prefer_payload: false)
         @event_store = event_store
         @outbox = outbox
         @batch = batch
         @tx_per_job = tx_per_job
         @backoff = backoff
         @max_attempts = max_attempts
+        @listen = listen
+        @prefer_payload = prefer_payload
         @stop = Concurrent::AtomicBoolean.new(false)
       end
 
@@ -83,8 +92,29 @@ module Shaolin
 
       def drain(poll_interval)
         until @stop.true?
-          sleep(poll_interval) if safe_run_once.zero?
+          next unless safe_run_once.zero?
+
+          @listen ? wait_for_job(poll_interval) : sleep(poll_interval)
         end
+      end
+
+      # Block up to `timeout` for a NOTIFY on the jobs channel (woken early by an
+      # enqueue). Holds a connection only while idle; any LISTEN/NOTIFY hiccup
+      # degrades to a plain poll-interval sleep — NOTIFY is an optimization, not a
+      # correctness dependency.
+      def wait_for_job(timeout)
+        OutboxJob.connection_pool.with_connection do |conn|
+          conn.execute("LISTEN #{Outbox::CHANNEL}")
+          conn.raw_connection.wait_for_notify(timeout)
+        ensure
+          begin
+            conn.execute("UNLISTEN #{Outbox::CHANNEL}")
+          rescue StandardError
+            nil
+          end
+        end
+      rescue StandardError
+        sleep(timeout)
       end
 
       # A transient DB/lock error in one poll must not kill the drain loop.
@@ -111,10 +141,16 @@ module Shaolin
       # to rebuilding it from the outbox row's own YAML payload (self-contained),
       # so a job never gets stuck just because the stream was trimmed.
       def load_event(job)
+        return event_from_payload(job) if @prefer_payload && !job.payload.to_s.empty?
+
         @event_store.read.event(job.event_id)
       rescue StandardError => e
         raise unless e.class.name == "RubyEventStore::EventNotFound"
 
+        event_from_payload(job)
+      end
+
+      def event_from_payload(job)
         data = job.payload.to_s.empty? ? {} : YAML.safe_load(job.payload, permitted_classes: [Symbol, Time, Date], aliases: true)
         Object.const_get(job.event_type).new(event_id: job.event_id, data: data)
       end

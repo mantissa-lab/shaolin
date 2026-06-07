@@ -116,6 +116,18 @@ RSpec.describe Shaolin::Jobs::Worker do
     end
   end
 
+  it "#23 prefer_payload reconstructs the event from the outbox row (no per-job store reload)" do
+    Dir.mktmpdir do |root|
+      app = boot(root)
+      app["things"]["cqrs.command_bus"].call(CreateThing.new(id: "pp1"))
+
+      worker = described_class.new(event_store: Shaolin::Kernel["cqrs.event_store"], prefer_payload: true)
+      expect(worker.run_once).to eq(1)
+      expect($worker_seen.pop).to eq("pp1")              # reactor ran with the payload-rebuilt event
+      expect(Shaolin::Jobs::OutboxJob.first.status).to eq("done")
+    end
+  end
+
   it "run drains on a thread pool and stops gracefully on stop!" do
     Dir.mktmpdir do |root|
       app = boot(root)
