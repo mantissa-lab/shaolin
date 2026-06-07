@@ -185,6 +185,22 @@ RSpec.describe Shaolin::LLM do
       expect(result.truncated?).to be(true)
     end
 
+    it "bounds in-flight calls to max_concurrency" do
+      active = Concurrent::AtomicFixnum.new(0)
+      peak = Concurrent::AtomicFixnum.new(0)
+      transport = lambda do |_p, _b|
+        n = active.increment
+        peak.update { |v| [v, n].max }
+        sleep 0.05
+        active.decrement
+        { "choices" => [{ "message" => { "content" => "ok" } }] }
+      end
+      llm = described_class.new(api_key: "t", transport: transport, max_concurrency: 1)
+
+      Array.new(4) { Thread.new { llm.complete(messages: []) } }.each(&:join)
+      expect(peak.value).to eq(1) # never more than 1 concurrent call past the cap
+    end
+
     it "completes against the live API when OPENAI_API_KEY is set", :live do
       skip "set OPENAI_API_KEY to run the live OpenAI test" unless ENV["OPENAI_API_KEY"]
 

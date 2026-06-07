@@ -1,6 +1,7 @@
 require "net/http"
 require "uri"
 require "json"
+require "concurrent"
 require "shaolin/core"
 require_relative "client"
 require_relative "completion"
@@ -53,7 +54,7 @@ module Shaolin
       def initialize(api_key: ENV["OPENAI_API_KEY"], model: "gpt-4.1",
                      base: "https://api.openai.com/v1", transport: nil, reasoning_tag: nil,
                      open_timeout: 15, read_timeout: 600, max_retries: 2, retry_backoff: [0.5, 2.0],
-                     default_params: {})
+                     default_params: {}, max_concurrency: nil)
         @api_key = api_key
         @model = model
         @base = base
@@ -64,6 +65,10 @@ module Shaolin
         @max_retries = max_retries
         @retry_backoff = retry_backoff
         @default_params = default_params || {}
+        # Bound in-flight calls against a capacity-limited provider (e.g. a shared
+        # self-hosted model) so a worker pool can't oversubscribe it — complete()
+        # blocks past the cap instead of every app hand-rolling a semaphore.
+        @semaphore = max_concurrency && Concurrent::Semaphore.new(max_concurrency)
       end
 
       def complete(messages:, tools: [], model: nil, response_format: nil, params: {})
@@ -136,21 +141,37 @@ module Shaolin
       end
 
       def post(path, body)
-        return @transport.call(path, body) if @transport
+        with_concurrency do
+          next @transport.call(path, body) if @transport
 
-        raise "OPENAI_API_KEY not set" if @api_key.nil? || @api_key.empty?
+          raise "OPENAI_API_KEY not set" if @api_key.nil? || @api_key.empty?
 
-        uri = URI("#{@base}#{path}")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = (uri.scheme == "https")
-        http.open_timeout = @open_timeout
-        http.read_timeout = @read_timeout
-        req = Net::HTTP::Post.new(uri)
-        req["Authorization"] = "Bearer #{@api_key}"
-        req["Content-Type"] = "application/json"
-        req.body = JSON.generate(body)
+          uri = URI("#{@base}#{path}")
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = (uri.scheme == "https")
+          http.open_timeout = @open_timeout
+          http.read_timeout = @read_timeout
+          req = Net::HTTP::Post.new(uri)
+          req["Authorization"] = "Bearer #{@api_key}"
+          req["Content-Type"] = "application/json"
+          req.body = JSON.generate(body)
 
-        with_retries { request_json(http, req) }
+          with_retries { request_json(http, req) }
+        end
+      end
+
+      # Block past the configured concurrency cap (no-op when unset). Retries
+      # happen INSIDE the held permit, so a retry doesn't open an extra connection
+      # beyond the cap — exactly the thundering-herd this prevents.
+      def with_concurrency
+        return yield unless @semaphore
+
+        @semaphore.acquire
+        begin
+          yield
+        ensure
+          @semaphore.release
+        end
       end
 
       # One request: non-2xx raises a typed HTTPError (carrying status + truncated

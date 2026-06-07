@@ -125,8 +125,16 @@ module Shaolin
       end
     end
 
-    def self.session(id:, llm:, repo:, command_bus: nil)
-      Session.new(harness: self, id: id, llm: llm, repo: repo, command_bus: command_bus)
+    # llm/repo/command_bus default to the registered kernel providers, so the
+    # common case is just `MyConvo.session(id:)`; pass them explicitly to override
+    # (tests / custom wiring).
+    def self.session(id:, llm: nil, repo: nil, command_bus: nil)
+      Session.new(
+        harness: self, id: id,
+        llm: llm || Shaolin::Kernel["llm.client"],
+        repo: repo || Shaolin::Kernel["cqrs.aggregate_repository"],
+        command_bus: command_bus || Shaolin::Kernel["cqrs.command_bus"]
+      )
     end
 
     # Opt-in: maintain the cross-user `conversations_read` projection + register the

@@ -176,6 +176,14 @@ RSpec.describe Shaolin::Conversation do
     ])
   end
 
+  it "#15 session(id:) self-resolves llm/repo/command_bus from the kernel" do
+    llm = Shaolin::LLM::InMemory.new(c(text: "safe"), c(text: "Hi"))
+    boot!(llm) # starts providers + registers llm.client / cqrs.* on the kernel
+
+    session = CompanionConvo.session(id: Shaolin::Id.generate) # no explicit llm/repo/command_bus
+    expect(session.receive("hello")).to eq("Hi")
+  end
+
   describe "#5 cross-user read-side (conversations_read projection)" do
     def boot_read_model!(llm)
       Shaolin::Provider.reset!
