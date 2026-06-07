@@ -9,6 +9,14 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Server-level request timeout (issue #21)
+
+- `SHAOLIN_REQUEST_TIMEOUT` (seconds) bounds each request on the Falcon adapter via a **cooperative**
+  `Async` timeout (`Shaolin::Server::Timeout`) — a slow/hung handler is aborted, freeing its fiber and
+  its checked-out DB connection (otherwise it starves the pool and amplifies the concurrency cliff).
+  Returns 503 `timeout` on expiry. Off by default; inert under Puma (use Rack::Timeout / Puma timeouts
+  there). Completes the load-wall trio with admission control (#20) + metrics (#24).
+
 ### Load walls + visibility: admission control, metrics, startup banner (issues #20, #24, #19)
 
 - **Admission control / load-shedding (#20):** opt-in `SHAOLIN_WEB_CONCURRENCY` (or
