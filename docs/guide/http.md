@@ -517,3 +517,48 @@ Shaolin::Health.register("database") { ActiveRecord::Base.connection.active? }
 | 503 `overloaded` | `Concurrency` |
 | 503 readiness | `/readyz` when a health check fails |
 | 409 `conflict` / 422 `unprocessable_command` / 500 `internal_error` | `ErrorBoundary` |
+
+## WebSocket (`Shaolin::HTTP::WebSocket`)
+
+A first-class, **domain-agnostic** WebSocket on `async-websocket` (Falcon-native). Both directions,
+same `Socket` API (`on_open` / `on_message(|data, socket|)` / `on_close` / `on_error` + `send` /
+`close`). Frames arrive as raw `String`s (text or binary) — **not** tied to LLM/realtime or any schema.
+Falcon only (async reactor); under Puma run a dedicated WS server.
+
+**Server** — upgrade an inbound request from any controller action:
+
+```ruby
+class ChatController < Shaolin::HTTP::Controller
+  routes { get "/ws/chat/:room", :chat }   # a normal route
+
+  def chat(req)
+    ws(req) do |socket|                     # 400 automatically if not a WS upgrade
+      socket.on_open    { socket.send(%({"hello":"#{req[:room]}"})) }
+      socket.on_message { |data, s| s.send(echo(data)) }          # text
+      socket.on_message { |bytes, s| forward_audio(bytes) }        # or binary frames
+      socket.on_close   { cleanup }
+    end
+  end
+end
+```
+
+**Client** — connect OUT to **any** WebSocket server (Asterisk ARI, a third-party feed, another
+shaolin service), same Socket API, inside an Async reactor:
+
+```ruby
+Shaolin::HTTP::WebSocket.connect("wss://asterisk/ari/events",
+  headers: { "authorization" => "Bearer #{token}" }) do |socket|
+  socket.on_message { |event| handle(event) }
+  socket.send(%({"type":"subscribe"}))
+end
+```
+
+| Method | Purpose |
+|---|---|
+| `WebSocket.upgrade?(env)` | is this request a WS upgrade? |
+| `WebSocket.open(env) { \|socket\| }` | server: accept + run (the `ws(req)` controller helper wraps this) |
+| `WebSocket.connect(url, headers:) { \|socket\| }` | client: connect to any WS server + run |
+| `Socket#on_open/on_message/on_close/on_error`, `#send(data, binary: false)`, `#close` | the JS-like handler API |
+
+> The LLM **realtime** transport (`Shaolin::LLM::Realtime::WebSocketTransport`) is just **one consumer**
+> of this — a thin JSON-framing adapter for the OpenAI Realtime contract. The WebSocket itself is general.

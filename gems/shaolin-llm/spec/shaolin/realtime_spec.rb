@@ -100,3 +100,33 @@ RSpec.describe Shaolin::LLM::Realtime do
     end
   end
 end
+
+# #28 — concrete async-websocket transport for the realtime Client.
+RSpec.describe Shaolin::LLM::Realtime::WebSocketTransport do
+  WsFrame = Struct.new(:buffer)
+
+  class FakeWsConn
+    attr_reader :sent
+    def initialize(frames) = (@frames = frames.dup; @sent = [])
+    def read = @frames.shift
+    def send_text(s) = @sent << s
+    def flush = nil
+    def close = nil
+  end
+
+  it "maps send(hash) → JSON text frame and inbound frames → parsed hash" do
+    require "async"
+    conn = FakeWsConn.new([WsFrame.new('{"type":"session.created","id":"s1"}')])
+    received = []
+
+    Async do
+      t = described_class.new(conn)
+      t.on_message { |h| received << h }     # starts the reader task
+      t.send(type: "response.create", text: "hi")
+      sleep 0.02                              # let the reader drain the frame (cooperative)
+    end
+
+    expect(conn.sent).to eq(['{"type":"response.create","text":"hi"}'])
+    expect(received).to eq([{ type: "session.created", id: "s1" }])
+  end
+end

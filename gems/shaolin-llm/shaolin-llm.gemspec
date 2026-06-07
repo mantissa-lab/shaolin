@@ -12,4 +12,5 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "shaolin-core"
   spec.add_dependency "concurrent-ruby", "~> 1.3"
+  spec.add_dependency "async-websocket", "~> 0.30" # concrete realtime transport
 end

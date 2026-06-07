@@ -75,6 +75,17 @@ module Shaolin
         Response.new(204, {}, [])
       end
 
+      # Upgrade the request to a WebSocket (Falcon). `ws(req) { |socket| ... }` —
+      # register socket.on_open/on_message/on_close + socket.send; the block runs
+      # the connection. 400 if the client didn't request an upgrade. (See
+      # Shaolin::HTTP::WebSocket; async-websocket loads on first use.)
+      def ws(req, &block)
+        require_relative "web_socket"
+        return bad_request("websocket required") unless WebSocket.upgrade?(req.env)
+
+        WebSocket.open(req.env, &block)
+      end
+
       def not_found(message = "not found")
         error_response(404, "not_found", message)
       end
