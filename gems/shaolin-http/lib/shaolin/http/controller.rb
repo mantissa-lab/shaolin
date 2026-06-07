@@ -21,10 +21,13 @@ module Shaolin
         end
 
         # `response:` (optional) documents the response schema for OpenAPI — a DTO
-        # class (→ 200) or a { status => DTO } hash. Ignored by routing.
+        # class (→ 200) or a { status => DTO } hash. `auth:` (optional) names the
+        # authenticator that guards this route (registered on the :http provider);
+        # the framework runs it before the action and 401s on a nil identity.
+        # Neither affects path matching.
         %i[get post put patch delete].each do |verb|
-          define_method(verb) do |path, action, response: nil|
-            @routes << { method: verb, path: path, action: action, response: response }
+          define_method(verb) do |path, action, response: nil, auth: nil|
+            @routes << { method: verb, path: path, action: action, response: response, auth: auth }
           end
         end
       end
@@ -36,6 +39,13 @@ module Shaolin
       end
 
       def self.route_set = @route_set ||= []
+
+      # A default authenticator for every route in this controller (a per-route
+      # `auth:` overrides it). `auth :admin` reads as the controller's auth plane.
+      def self.default_auth(scheme = nil)
+        @default_auth = scheme if scheme
+        @default_auth
+      end
 
       # Framework infra resolved lazily from the kernel (registered by :cqrs),
       # so controllers reach the buses without load-time DI wiring.
