@@ -9,6 +9,15 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Worker throughput: LISTEN/NOTIFY wake + payload reuse (issue #23)
+
+- The worker no longer just polls: `Outbox#enqueue` fires a Postgres `NOTIFY` (delivered on commit), and
+  an idle worker waits on it (`LISTEN`) — picking up a new job immediately instead of after the poll
+  interval. Polling stays the correctness floor (a missed NOTIFY is caught next tick; any LISTEN hiccup
+  degrades to a plain sleep). `listen:` (default true). And `prefer_payload:` (opt-in) reconstructs the
+  event from the outbox row's own payload instead of reloading it from the store per job — one fewer
+  round-trip; off by default since the store is canonical (e.g. after event upcasting).
+
 ### HTTP rate limiting (issue #25, part 1)
 
 - `Shaolin::HTTP::RateLimit` — a fixed-window rate-limit middleware backed by any `Shaolin::Store`

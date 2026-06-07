@@ -14,6 +14,8 @@ module Shaolin
       # index, so re-publishing an event never enqueues a duplicate — and, since
       # this runs as a sync subscriber inside the event-append transaction, a
       # conflict can't abort that transaction (unlike a raising create!).
+      CHANNEL = "shaolin_jobs".freeze # LISTEN/NOTIFY channel — wakes idle workers
+
       def enqueue(reactor:, event:, run_at: Time.now)
         now = Time.now
         OutboxJob.insert_all(
@@ -29,6 +31,13 @@ module Shaolin
           }],
           unique_by: %i[reactor event_id]
         )
+        # Wake idle workers (delivered on commit, since we're inside the append tx).
+        # Best-effort: a NOTIFY failure must never break the append.
+        begin
+          OutboxJob.connection.execute("NOTIFY #{CHANNEL}")
+        rescue StandardError
+          nil
+        end
       end
 
       # Lock and return up to `limit` due pending jobs. MUST be called inside a
