@@ -36,7 +36,7 @@ every sub-gem's gemspec):
 
 ```ruby
 # Gemfile
-gem "shaolin", git: "git@github.com:mantissa-lab/shaolin.git", glob: "gems/*/*.gemspec"
+gem "shaolin", git: "https://github.com/mantissa-lab/shaolin.git", tag: "v0.1.0", glob: "gems/*/*.gemspec"
 ```
 ```ruby
 # config/boot.rb  — one require loads core, cqrs, activerecord, dto, http, server, jobs, messaging,

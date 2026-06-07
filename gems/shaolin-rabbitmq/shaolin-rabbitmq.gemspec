@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::RabbitMQ::VERSION
   spec.summary     = "shaolin RabbitMQ transport (bunny): publish/consume integration events"
   spec.authors     = ["shaolin"]
-  spec.license     = "MIT"
+  spec.license     = "Nonstandard" # Mantissa Proprietary — see LICENSE
   spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*.rb"]
   spec.required_ruby_version = ">= 4.0.0"

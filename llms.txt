@@ -14,7 +14,7 @@
 
 - **One gem, from git.** The umbrella `shaolin` gem pulls the whole stack. Distributed via private
   **git** (not RubyGems), so an app's `Gemfile` is one line —
-  `gem "shaolin", git: "git@github.com:mantissa-lab/shaolin.git", glob: "gems/*/*.gemspec"` (the
+  `gem "shaolin", git: "https://github.com/mantissa-lab/shaolin.git", tag: "v0.1.0", glob: "gems/*/*.gemspec"` (the
   `glob:` lets Bundler see every gemspec in the repo, so the umbrella resolves all sub-gems) — and
   `config/boot.rb` is a single `require "shaolin"` (it loads core, cqrs, activerecord, dto, http,
   server, jobs, messaging, redis, rabbitmq, llm, harness; the `shaolin` CLI ships with it). Local

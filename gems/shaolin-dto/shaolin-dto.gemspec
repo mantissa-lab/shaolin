@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::DTO_VERSION
   spec.summary     = "shaolin boundary validation (dry-validation) + typed value objects"
   spec.authors     = ["shaolin"]
-  spec.license     = "MIT"
+  spec.license     = "Nonstandard" # Mantissa Proprietary — see LICENSE
   spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*.rb"]
   spec.required_ruby_version = ">= 4.0.0"

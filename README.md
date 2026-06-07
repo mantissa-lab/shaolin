@@ -22,12 +22,12 @@ folder you can hand to its own agent. Built to be **LLM-operable** end to end.
 
 ## Install
 
-shaolin is distributed via (private) **git**, not RubyGems. One line in an app's `Gemfile` pulls the
-whole framework — Bundler's `glob:` exposes every gemspec in the repo so the umbrella resolves all
-sub-gems (you need read access to the repo):
+shaolin is distributed via **git**, not RubyGems (it's proprietary/source-available — see License). One
+line in an app's `Gemfile` pulls the whole framework — Bundler's `glob:` exposes every gemspec in the
+repo so the umbrella resolves all sub-gems; the public https URL needs no credentials (works in Docker):
 
 ```ruby
-gem "shaolin", git: "git@github.com:mantissa-lab/shaolin.git", glob: "gems/*/*.gemspec"
+gem "shaolin", git: "https://github.com/mantissa-lab/shaolin.git", tag: "v0.1.0", glob: "gems/*/*.gemspec"
 ```
 
 ```ruby
@@ -104,4 +104,6 @@ and llms.txt are the source of truth.
 
 ## License
 
-MIT.
+**Mantissa Proprietary** — Copyright (c) 2026 Mantissa, all rights reserved. Source-available for
+reference/evaluation only; no use/redistribution rights are granted except under a written agreement.
+See [`LICENSE`](LICENSE); full terms on request.

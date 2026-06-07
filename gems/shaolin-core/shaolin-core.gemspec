@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::Core::VERSION
   spec.summary     = "shaolin kernel: modular DI + lifecycle over dry-system"
   spec.authors     = ["shaolin"]
-  spec.license     = "MIT"
+  spec.license     = "Nonstandard" # Mantissa Proprietary — see LICENSE
   spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*.rb"]
   spec.required_ruby_version = ">= 4.0.0"

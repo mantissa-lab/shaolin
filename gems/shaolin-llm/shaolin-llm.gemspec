@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version     = Shaolin::LLM::VERSION
   spec.summary     = "shaolin LLM port: chat-completion + tool-calling, with InMemory and OpenAI adapters"
   spec.authors     = ["shaolin"]
-  spec.license     = "MIT"
+  spec.license     = "Nonstandard" # Mantissa Proprietary — see LICENSE
   spec.homepage    = "https://github.com/shaolin-rb/shaolin"
   spec.files       = Dir["lib/**/*.rb"] + ["README.md"]
   spec.required_ruby_version = ">= 4.0.0"

@@ -4,11 +4,11 @@ source "https://rubygems.org"
 # HTTP, server, jobs/outbox, messaging, Redis, RabbitMQ, LLM, harness, and the
 # `shaolin` CLI. `require "shaolin"` (config/boot.rb) loads it all.
 #
-# Installed from git (the gems are not on RubyGems). `glob:` lets Bundler see
-# every gemspec in the repo, so this single line resolves all sub-gems. The repo
-# is private — you need read access (SSH key, or swap to the https URL + a token).
-# Pin to a tag/branch for reproducibility, e.g. `tag: "v0.1.0"`.
-gem "shaolin", git: "git@github.com:mantissa-lab/shaolin.git", glob: "gems/*/*.gemspec"
+# Installed from the public git repo (not RubyGems). `glob:` lets Bundler see
+# every gemspec in the repo, so this single line resolves all sub-gems; `tag:`
+# pins a release for reproducible builds (incl. Docker — public https needs no
+# credentials). Bump the tag to upgrade. (Proprietary; see the repo LICENSE.)
+gem "shaolin", git: "https://github.com/mantissa-lab/shaolin.git", tag: "v0.1.0", glob: "gems/*/*.gemspec"
 
 group :development, :test do
   gem "rspec", "~> 3.13"
