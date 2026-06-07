@@ -25,11 +25,15 @@ module Shaolin
     module Router
       LIVENESS = ->(_env) { [200, { "content-type" => "application/json" }, ['{"status":"ok"}']] }
 
-      def self.build(containers, middleware: [], openapi: nil)
+      UNAUTHORIZED = [401, { "content-type" => "application/json" },
+                      [JSON.generate(error: { code: "unauthorized", message: "authentication required" })]].freeze
+
+      def self.build(containers, middleware: [], openapi: nil, authenticators: {})
         defs = collect_route_defs(containers)
         detect_conflicts!(defs)
+        validate_auth!(defs, authenticators)
 
-        app = build_router(defs, openapi)
+        app = build_router(defs, openapi, authenticators)
         middleware.reverse_each { |mw| app = mw.call(app) }
         app = RewindableInput.new(app)
         app = ErrorBoundary.new(app)
@@ -42,7 +46,8 @@ module Shaolin
           container.keys.grep(/\Acontrollers\./).each do |key|
             controller = container[key]
             controller.class.route_set.each do |route|
-              defs << route.merge(controller: controller, module: module_name)
+              defs << route.merge(controller: controller, module: module_name,
+                                  auth: route[:auth] || controller.class.default_auth)
             end
           end
         end
@@ -61,7 +66,17 @@ module Shaolin
         end
       end
 
-      def self.build_router(defs, openapi = nil)
+      # Fail fast at boot if a route names an authenticator the app didn't register.
+      def self.validate_auth!(defs, authenticators)
+        defs.filter_map { |d| d[:auth] }.uniq.each do |scheme|
+          next if authenticators.key?(scheme)
+
+          raise BootError, "route declares auth #{scheme.inspect} but no such authenticator is registered " \
+                           "(HTTP.register_provider!(auth: { #{scheme}: ->(env){…} }))"
+        end
+      end
+
+      def self.build_router(defs, openapi = nil, authenticators = {})
         liveness = LIVENESS
         readiness = method(:readiness_response)
         metrics = method(:metrics_response)
@@ -78,8 +93,22 @@ module Shaolin
             controller = d[:controller]
             action = d[:action]
             endpoint = ->(env) { controller.public_send(action, Request.new(env)) }
+            endpoint = Router.guard(endpoint, authenticators[d[:auth]]) if d[:auth]
             public_send(d[:method], d[:path], to: endpoint)
           end
+        end
+      end
+
+      # Wrap an endpoint so the named authenticator runs first: nil identity → 401,
+      # otherwise the identity is exposed via Shaolin::Context (cleared per request
+      # by RequestLogger) and the action runs.
+      def self.guard(endpoint, authenticator)
+        lambda do |env|
+          identity = authenticator.call(env)
+          next UNAUTHORIZED if identity.nil?
+
+          Shaolin::Context[:identity] = identity
+          endpoint.call(env)
         end
       end
 

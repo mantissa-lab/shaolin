@@ -53,7 +53,7 @@
 - `read_models/<entity>_record.rb` — `< Shaolin::AR::ReadModel` (ActiveRecord), `self.table_name = "<name>_read"`.
 - `queries/` — read the read models.
 - `dto/<...>_dto.rb` — `< Shaolin::DTO`; `json { required(:x).filled(:string) }`; `.validate(params)` → `success?/failure?/to_h/errors`.
-- `controllers/<name>_controller.rb` — `< Shaolin::HTTP::Controller`; `routes do post "/x", :create; get "/x/:id", :show end`; validate DTO → `command_bus.call(Command.new(...))` → `render_result(result, location:)`; reads via read models; `command_bus`/`query_bus`/`event_store` are available.
+- `controllers/<name>_controller.rb` — `< Shaolin::HTTP::Controller`; `routes do post "/x", :create; get "/x/:id", :show end`; validate DTO → `command_bus.call(Command.new(...))` → `render_result(result, location:)`; reads via read models; `command_bus`/`query_bus`/`event_store` are available. Routes may declare `response:` (OpenAPI) and `auth: :scheme` (a named authenticator registered via `HTTP.register_provider!(auth: { scheme: ->(env){identity|nil} })`; runs before the action, 401 on nil, identity in `Shaolin::Context[:identity]`; `default_auth :scheme` for a controller-wide default).
 - `reactors/<entity>_reactor.rb` (optional) — `< Shaolin::Jobs::Reactor`; `on(Events::X) { |e| ... }`.
   Like a projection, but the handler runs LATER in `shaolin worker` via the outbox (NOT in the
   event's transaction). At-least-once delivery → handlers MUST be idempotent. Use for side effects:

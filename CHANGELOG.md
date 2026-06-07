@@ -9,6 +9,16 @@ atomic by default** — re-read the Reliability section below and `docs/EVENTS.m
 
 ## [Unreleased]
 
+### Declarative per-route auth (issue #18)
+
+- Routes declare their authenticator inline — `post "/admin/x", :create, auth: :admin` (or a
+  controller-wide `default_auth :admin`) — mirroring the `response:` option. The app registers named
+  authenticators on the provider: `HTTP.register_provider!(auth: { admin: ->(env) { identity_or_nil } })`.
+  The framework runs the route's authenticator before the action, **401s on a nil identity**, and exposes
+  the identity via `Shaolin::Context[:identity]`. Boot **fails fast** if a route names an unregistered
+  authenticator. Auth becomes local to the route (lint-/describe-visible) instead of URL-path-regex
+  middleware in a separate file.
+
 ### LLM concurrency cap (#16) + Conversation.session kernel defaults (#15)
 
 - **Provider concurrency (#16):** `OpenAI.new(max_concurrency: N)` bounds in-flight calls with a

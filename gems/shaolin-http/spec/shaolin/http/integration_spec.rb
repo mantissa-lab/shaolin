@@ -191,6 +191,68 @@ RSpec.describe "shaolin-http integration" do
     end
   end
 
+  it "#18 guards a route with a named authenticator: 401 without, identity in Context with" do
+    Dir.mktmpdir do |root|
+      controllers = File.join(root, "app/modules/admin/controllers")
+      FileUtils.mkdir_p(controllers)
+      File.write(File.join(root, "app/modules/admin/module.rb"), 'Shaolin.module("admin") {}')
+      File.write(File.join(controllers, "admin_controller.rb"), <<~RUBY)
+        module Admin
+          module Controllers
+            class AdminController < Shaolin::HTTP::Controller
+              routes do
+                get "/admin/secret", :secret, auth: :token
+                get "/admin/whoami", :whoami, auth: :token
+              end
+              def secret(_req) = json({ ok: true })
+              def whoami(_req) = json({ who: Shaolin::Context[:identity] })
+            end
+          end
+        end
+      RUBY
+
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!(
+        modules_dir: File.join(root, "app/modules"),
+        auth: { token: ->(env) { env["HTTP_AUTHORIZATION"] == "Bearer s3cret" ? "admin-1" : nil } }
+      )
+      Shaolin::App.new(root: root).boot!
+      session = Rack::Test::Session.new(Shaolin::Kernel["http.app"])
+
+      session.get("/admin/secret") # no credentials
+      expect(session.last_response.status).to eq(401)
+      expect(JSON.parse(session.last_response.body)["error"]["code"]).to eq("unauthorized")
+
+      session.get("/admin/secret", {}, "HTTP_AUTHORIZATION" => "Bearer s3cret")
+      expect(session.last_response.status).to eq(200)
+
+      session.get("/admin/whoami", {}, "HTTP_AUTHORIZATION" => "Bearer s3cret")
+      expect(JSON.parse(session.last_response.body)["who"]).to eq("admin-1") # identity exposed via Context
+    end
+  end
+
+  it "#18 fails fast at boot if a route names an unregistered authenticator" do
+    Dir.mktmpdir do |root|
+      controllers = File.join(root, "app/modules/x/controllers")
+      FileUtils.mkdir_p(controllers)
+      File.write(File.join(root, "app/modules/x/module.rb"), 'Shaolin.module("x") {}')
+      File.write(File.join(controllers, "x_controller.rb"), <<~RUBY)
+        module X
+          module Controllers
+            class XController < Shaolin::HTTP::Controller
+              routes { get "/x", :x, auth: :nope }
+              def x(_req) = json({})
+            end
+          end
+        end
+      RUBY
+
+      Shaolin::CQRS.register_provider!
+      Shaolin::HTTP.register_provider!(modules_dir: File.join(root, "app/modules")) # no :nope authenticator
+      expect { Shaolin::App.new(root: root).boot! }.to raise_error(Shaolin::BootError, /nope/)
+    end
+  end
+
   it "serves the OpenAPI doc at /openapi.json and Swagger UI at /swagger when swagger: true" do
     build_and_boot(swagger: true) do |rack_app|
       session = Rack::Test::Session.new(rack_app)
