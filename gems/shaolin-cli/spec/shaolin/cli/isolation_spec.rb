@@ -85,6 +85,28 @@ RSpec.describe Shaolin::CLI::Isolation do
     end
   end
 
+  it "#29 flags dispatch() of a command the manifest does not import" do
+    Dir.mktmpdir do |root|
+      modules = File.join(root, "app/modules")
+      write(modules, "sip/module.rb", 'Shaolin.module("sip") { imports commands: ["call.create_call"] }')
+      write(modules, "sip/controllers/sip_controller.rb", <<~RUBY)
+        module Sip
+          module Controllers
+            class SipController
+              def ok = dispatch("call.create_call", id: 1)   # declared -> clean
+              def bad = dispatch("call.delete_everything")    # undeclared -> flagged
+            end
+          end
+        end
+      RUBY
+
+      violations = described_class.new(modules).violations
+      bad = violations.select { |v| v.rule == "undeclared-command" }
+      expect(bad.size).to eq(1)
+      expect(bad.first.message).to include("call.delete_everything")
+    end
+  end
+
   describe "#outside_violations (#17 — app code outside the module graph)" do
     it "flags Kernel internals + cross-module refs outside app/modules; exempts config/bin/spec" do
       Dir.mktmpdir do |root|

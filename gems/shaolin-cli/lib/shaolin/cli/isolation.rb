@@ -109,6 +109,13 @@ module Shaolin
                                  "import(#{key.inspect}) is not declared in module.rb (add `imports #{key.inspect}`)")
         end
 
+        walker.dispatches.uniq.each do |key, line|
+          next if declared.include?(key)
+
+          found << Violation.new(rel, line, "undeclared-command",
+                                 "dispatch(#{key.inspect}) is not declared in module.rb (add `imports commands: [#{key.inspect}]`)")
+        end
+
         found
       end
 
@@ -159,10 +166,11 @@ module Shaolin
           @constants = []
           @requires = []
           @imports = []
+          @dispatches = []
           @kernel_refs = []
         end
 
-        attr_reader :constants, :requires, :imports, :kernel_refs
+        attr_reader :constants, :requires, :imports, :dispatches, :kernel_refs
 
         def visit_constant_path_node(node)
           @constants << [root_name(node), node.location.start_line]
@@ -176,6 +184,8 @@ module Shaolin
             @requires << [arg.unescaped, node.location.start_line]
           elsif node.name == :import && node.receiver.nil? && arg.is_a?(Prism::StringNode)
             @imports << [arg.unescaped, node.location.start_line]
+          elsif node.name == :dispatch && node.receiver.nil? && arg.is_a?(Prism::StringNode)
+            @dispatches << [arg.unescaped, node.location.start_line]
           end
           super
         end

@@ -12,17 +12,25 @@ module Shaolin
       @commands_handled = []
       @events_published = []
       @subscribed_events = []
+      @imported_commands = []
     end
 
     attr_reader :name
 
-    def imports(*keys, events: [])
-      return @imports if keys.empty? && events.empty?
+    # `imports "billing.invoice_reader"` (component), `imports events: [...]`
+    # (subscribe to another module's events by topic), and `imports commands:
+    # [...]` (dispatch another module's commands by dotted key via `dispatch(...)`).
+    def imports(*keys, events: [], commands: [])
+      return @imports if keys.empty? && events.empty? && commands.empty?
 
       @imports.concat(keys.flatten.map(&:to_s))
       @subscribed_events.concat(Array(events).map(&:to_s))
+      @imported_commands.concat(Array(commands).map(&:to_s))
       self
     end
+
+    # Dotted command keys this module may `dispatch(...)` cross-module.
+    def imported_commands = @imported_commands
 
     def exports(*keys)
       return @exports if keys.empty?

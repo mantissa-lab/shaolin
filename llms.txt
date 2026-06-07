@@ -71,7 +71,9 @@
    controller, command/query handler, **reactor**, or any service object that does `include
    Shaolin::Imports`, use `import("other.thing")` (validated against the manifest; `lint` flags
    undeclared keys — it scans every `*.rb`, `reactors/` included). React to another module's events by
-   topic (`on("mod.event")` + `imports events:`). Never reach into `Kernel["kernel.containers"]` by hand.
+   topic (`on("mod.event")` + `imports events:`); dispatch another module's command by key
+   (`dispatch("mod.command", **args)` + `imports commands:`) — never reference its constant. Never reach
+   into `Kernel["kernel.containers"]` by hand.
 2. Reference sibling files with explicit `require_relative` (no autoloading).
 3. To add a field: edit the command (attribute), event (data), DTO (rule), aggregate (apply),
    projection (write), and the read-model migration (column). Keep them consistent.

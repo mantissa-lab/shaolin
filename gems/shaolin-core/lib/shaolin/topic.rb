@@ -25,6 +25,17 @@ module Shaolin
       "#{INFLECTOR.camelize(module_part)}::Events::#{INFLECTOR.camelize(event_part)}"
     end
 
+    # "call.create_call" -> "Call::Commands::CreateCall" — the cross-module command
+    # class a `dispatch(...)` key resolves to (same inflection as events).
+    def command_class_name(key)
+      module_part, command_part = key.to_s.split(".", 2)
+      unless command_part && !module_part.to_s.empty?
+        raise ArgumentError, "command key must be 'module.command_name', got #{key.inspect}"
+      end
+
+      "#{INFLECTOR.camelize(module_part)}::Commands::#{INFLECTOR.camelize(command_part)}"
+    end
+
     # The owning module's name (the segment before the first dot), e.g.
     # "conversions.conversion_recorded" -> "conversions". Used for graph edges.
     def module_name(topic)

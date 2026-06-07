@@ -203,6 +203,34 @@ Billing::Charger.new.call          # => the resolved balance reader
 > component **must** live under its module's namespace (`Billing::...`) for resolution to work.
 > Both `imports` keys *and* `imports events:` topics are accepted by `import`.
 
+### `dispatch(key, **args)` — cross-module command dispatch
+
+To send **another module's command**, don't reference its constant (`Other::Commands::X` is a
+cross-module reference → `shaolin lint` flags it) and don't reach for `import` (that resolves
+*components*). Use `dispatch("mod.command_name", ...)` — the command analog of topic subscription:
+lint-clean (a string, not a constant), validated against the manifest, run on the shared command bus.
+
+1. Declare it: `imports commands: ["call.start_call"]` in `module.rb`.
+2. Call it from any `Shaolin::Imports` component: `dispatch("call.start_call", id:, session_id:)`.
+3. It validates against `definition.imported_commands` (raises `Shaolin::Error` otherwise), resolves
+   `"call.start_call"` → `Call::Commands::StartCall` (via `Shaolin::Topic.command_class_name`), and runs
+   `Shaolin::Kernel["cqrs.command_bus"].call(klass.new(**args))`.
+
+```ruby
+Shaolin.module("sip") { imports commands: ["call.start_call", "call.end_call"] }
+
+module Sip
+  module Controllers
+    class SipController < Shaolin::HTTP::Controller
+      def hangup(req) = dispatch("call.end_call", id: req[:id], reason: "hangup")
+    end
+  end
+end
+```
+
+> Own-module commands stay a direct `command_bus.call(Commands::X.new(...))` (same-module, lint-clean).
+> `shaolin lint` flags `dispatch("...")` of an undeclared command as `undeclared-command`.
+
 ---
 
 ## 4. Topic-string event subscription
@@ -219,6 +247,7 @@ event constant — that keeps the subscriber lint-clean (no cross-module constan
 | Method                     | Purpose                                                                 |
 | -------------------------- | ----------------------------------------------------------------------- |
 | `event_class_name(topic)`  | Maps `"module.event_name"` → `"Module::Events::EventName"`. **Raises `ArgumentError`** unless the topic has the `module.event` shape. |
+| `command_class_name(key)`  | Maps `"module.command_name"` → `"Module::Commands::CommandName"` (used by `dispatch`). |
 | `module_name(topic)`       | The owning module (segment before the first dot) — used for graph edges. |
 
 ```ruby
