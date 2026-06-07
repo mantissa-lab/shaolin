@@ -1,8 +1,10 @@
-# shaolin — the complete guide
+# shaolin — overview guide
 
-> **Authority note.** This guide + [`../llms.txt`](../llms.txt) + [`../CHANGELOG.md`](../CHANGELOG.md)
-> are the **current** source of truth, grounded in the code. The design specs under
-> `docs/superpowers/specs/` are **historical** pre-build documents and may be stale — prefer this guide.
+> **This is the single-file overview.** For the full per-topic reference (one page per gem/area, every
+> public API, generated from the code), see [`guide/`](guide/README.md). This guide + that tree +
+> [`../llms.txt`](../llms.txt) + [`../CHANGELOG.md`](../CHANGELOG.md) are the **current** source of truth,
+> grounded in the code. The design specs under `docs/superpowers/specs/` are **historical** pre-build
+> documents and may be stale — prefer these.
 
 shaolin is a **standalone, modular CQRS / Event-Sourcing backend framework for Ruby 4.0+** (not Rails,
 but Rails-ecosystem gems — ActiveRecord first — work). It's built to be **operated by AI agents**:
