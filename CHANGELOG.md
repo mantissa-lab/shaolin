@@ -1,13 +1,41 @@
 # Changelog
 
-All notable changes to shaolin. The framework is pre-1.0; gems share the `0.1.0` line and are not yet
-published (consumed as path gems). For full usage see [`llms.txt`](llms.txt) and [`docs/`](docs/).
+All notable changes to shaolin. The framework is pre-1.0; gems share one version line (now `0.2.0`) and
+are consumed as git gems from a tag (`gem "shaolin", git: …, tag: "v0.2.0", glob: "gems/*/*.gemspec"`).
+For full usage see [`llms.txt`](llms.txt) and [`docs/`](docs/).
 
 **For an agent already using shaolin:** this file is your "what changed" source. After pulling, run
 `bundle update shaolin-*` in your app. The headline change is that the **transactional outbox is now
 atomic by default** — re-read the Reliability section below and `docs/EVENTS.md`.
 
-## [Unreleased]
+## [0.2.0] — 2026-06-08
+
+### First-class WebSocket — server + client, domain-agnostic (issue #28)
+
+- `Shaolin::HTTP::WebSocket` is a JS-like socket over **async-websocket** (the Falcon-native WS, not the
+  EventMachine-era faye). A controller upgrades an inbound request with `ws(req) { |s| … }`; the same
+  `Socket` API (`on_open`/`on_message`/`on_close`/`on_error`, `send`, `close`) also drives **outbound**
+  connections to ANY server via `Shaolin::HTTP::WebSocket.connect(url, headers:) { |s| … }` — Asterisk
+  ARI, a third-party feed, another shaolin service. It is not LLM/realtime-specific. The LLM realtime
+  substrate now ships `Realtime::WebSocketTransport` as one thin JSON consumer of that socket, closing the
+  "bring your own transport" gap for `Realtime::OpenAI`.
+
+### Cross-module command dispatch (issue #29)
+
+- A reactor/module can invoke another module's command by a dotted key with `dispatch("call.create_call", **args)`
+  — manifest-validated against the module's declared `imports(commands: [...])`, resolved through `Shaolin::Topic`
+  to the concrete command class, and run on the shared `cqrs.command_bus`. The isolation linter (`shaolin check`)
+  now collects `dispatch(...)` literals and flags any undeclared command as `undeclared-command`, so cross-module
+  coupling stays explicit and auditable rather than leaking via direct constant references.
+
+### Controller ergonomics + documentation (issue #30)
+
+- Added the missing response helpers `bad_request(message)` (400) and `server_error(message)` (500) alongside the
+  existing `created`/`no_content`/`not_found`/`unprocessable`/`render_result` set, and the `ws(req, &block)` upgrade
+  helper. Per-gem guides under `docs/guide/` plus `docs/http.md`, `docs/modules.md`, and `llms.txt` were regenerated
+  from the actual code so the documented surface matches what the gems expose (no more inventing `status()`/`Deps[:sym]`).
+
+## [0.1.0] — 2026-06-08
 
 ### Event store at scale: resumable rebuild + partitioning/retention docs (issue #26)
 

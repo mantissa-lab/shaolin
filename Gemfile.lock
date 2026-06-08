@@ -1,7 +1,7 @@
 PATH
   remote: gems/shaolin-activerecord
   specs:
-    shaolin-activerecord (0.1.0)
+    shaolin-activerecord (0.2.0)
       activerecord (~> 8.0)
       pg (~> 1.5)
       ruby_event_store-active_record (~> 2.17)
@@ -10,14 +10,14 @@ PATH
 PATH
   remote: gems/shaolin-cli
   specs:
-    shaolin-cli (0.1.0)
+    shaolin-cli (0.2.0)
       shaolin-core
       thor (~> 1.3)
 
 PATH
   remote: gems/shaolin-core
   specs:
-    shaolin-core (0.1.0)
+    shaolin-core (0.2.0)
       dry-auto_inject (~> 1.0)
       dry-configurable (~> 1.0)
       dry-inflector (~> 1.0)
@@ -26,7 +26,7 @@ PATH
 PATH
   remote: gems/shaolin-cqrs
   specs:
-    shaolin-cqrs (0.1.0)
+    shaolin-cqrs (0.2.0)
       aggregate_root (~> 2.19)
       arkency-command_bus (~> 0.4)
       dry-monads (~> 1.6)
@@ -36,7 +36,7 @@ PATH
 PATH
   remote: gems/shaolin-dto
   specs:
-    shaolin-dto (0.1.0)
+    shaolin-dto (0.2.0)
       dry-struct (~> 1.6)
       dry-types (~> 1.7)
       dry-validation (~> 1.10)
@@ -45,7 +45,7 @@ PATH
 PATH
   remote: gems/shaolin-harness
   specs:
-    shaolin-harness (0.1.0)
+    shaolin-harness (0.2.0)
       shaolin-core
       shaolin-cqrs
       shaolin-jobs
@@ -54,7 +54,7 @@ PATH
 PATH
   remote: gems/shaolin-http
   specs:
-    shaolin-http (0.1.0)
+    shaolin-http (0.2.0)
       async-websocket (~> 0.30)
       hanami-router (~> 2.2)
       rack (~> 3.0)
@@ -63,7 +63,7 @@ PATH
 PATH
   remote: gems/shaolin-jobs
   specs:
-    shaolin-jobs (0.1.0)
+    shaolin-jobs (0.2.0)
       activerecord (~> 8.0)
       concurrent-ruby (~> 1.3)
       shaolin-core
@@ -72,7 +72,7 @@ PATH
 PATH
   remote: gems/shaolin-llm
   specs:
-    shaolin-llm (0.1.0)
+    shaolin-llm (0.2.0)
       async-websocket (~> 0.30)
       concurrent-ruby (~> 1.3)
       shaolin-core
@@ -80,13 +80,13 @@ PATH
 PATH
   remote: gems/shaolin-messaging
   specs:
-    shaolin-messaging (0.1.0)
+    shaolin-messaging (0.2.0)
       shaolin-core
 
 PATH
   remote: gems/shaolin-rabbitmq
   specs:
-    shaolin-rabbitmq (0.1.0)
+    shaolin-rabbitmq (0.2.0)
       bunny (~> 2.22)
       shaolin-core
       shaolin-messaging
@@ -94,7 +94,7 @@ PATH
 PATH
   remote: gems/shaolin-redis
   specs:
-    shaolin-redis (0.1.0)
+    shaolin-redis (0.2.0)
       connection_pool (>= 2.4)
       redis (~> 5.4)
       shaolin-core
@@ -103,7 +103,7 @@ PATH
 PATH
   remote: gems/shaolin-server
   specs:
-    shaolin-server (0.1.0)
+    shaolin-server (0.2.0)
       falcon (>= 0.47)
       puma (~> 6.4)
       rack (~> 3.0)
@@ -112,20 +112,20 @@ PATH
 PATH
   remote: gems/shaolin
   specs:
-    shaolin (0.1.0)
-      shaolin-activerecord (= 0.1.0)
-      shaolin-cli (= 0.1.0)
-      shaolin-core (= 0.1.0)
-      shaolin-cqrs (= 0.1.0)
-      shaolin-dto (= 0.1.0)
-      shaolin-harness (= 0.1.0)
-      shaolin-http (= 0.1.0)
-      shaolin-jobs (= 0.1.0)
-      shaolin-llm (= 0.1.0)
-      shaolin-messaging (= 0.1.0)
-      shaolin-rabbitmq (= 0.1.0)
-      shaolin-redis (= 0.1.0)
-      shaolin-server (= 0.1.0)
+    shaolin (0.2.0)
+      shaolin-activerecord (= 0.2.0)
+      shaolin-cli (= 0.2.0)
+      shaolin-core (= 0.2.0)
+      shaolin-cqrs (= 0.2.0)
+      shaolin-dto (= 0.2.0)
+      shaolin-harness (= 0.2.0)
+      shaolin-http (= 0.2.0)
+      shaolin-jobs (= 0.2.0)
+      shaolin-llm (= 0.2.0)
+      shaolin-messaging (= 0.2.0)
+      shaolin-rabbitmq (= 0.2.0)
+      shaolin-redis (= 0.2.0)
+      shaolin-server (= 0.2.0)
 
 GEM
   remote: https://rubygems.org/
@@ -470,20 +470,20 @@ CHECKSUMS
   ruby_event_store-rspec (2.19.2) sha256=0e7d6610477c8652280699709cf5ed39ab3d78c74e3e6dd13c016969942059e1
   samovar (2.4.1) sha256=c3b91dd0580771e3bc600621c1111f29542529dcffafaac3b6bf068b3f309e80
   securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
-  shaolin (0.1.0)
-  shaolin-activerecord (0.1.0)
-  shaolin-cli (0.1.0)
-  shaolin-core (0.1.0)
-  shaolin-cqrs (0.1.0)
-  shaolin-dto (0.1.0)
-  shaolin-harness (0.1.0)
-  shaolin-http (0.1.0)
-  shaolin-jobs (0.1.0)
-  shaolin-llm (0.1.0)
-  shaolin-messaging (0.1.0)
-  shaolin-rabbitmq (0.1.0)
-  shaolin-redis (0.1.0)
-  shaolin-server (0.1.0)
+  shaolin (0.2.0)
+  shaolin-activerecord (0.2.0)
+  shaolin-cli (0.2.0)
+  shaolin-core (0.2.0)
+  shaolin-cqrs (0.2.0)
+  shaolin-dto (0.2.0)
+  shaolin-harness (0.2.0)
+  shaolin-http (0.2.0)
+  shaolin-jobs (0.2.0)
+  shaolin-llm (0.2.0)
+  shaolin-messaging (0.2.0)
+  shaolin-rabbitmq (0.2.0)
+  shaolin-redis (0.2.0)
+  shaolin-server (0.2.0)
   sorted_set (1.1.0) sha256=bac01eb16b6bcfcdb7d732a28e87422be8b5c9fdcfeadbe9072682407524ee83
   string-format (0.2.0) sha256=bc981c14116b061f12134549f32fa2d61a17b5a35dd6fd36596c21722a789af6
   thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73

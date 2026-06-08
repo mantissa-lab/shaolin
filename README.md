@@ -27,7 +27,7 @@ line in an app's `Gemfile` pulls the whole framework — Bundler's `glob:` expos
 repo so the umbrella resolves all sub-gems; the public https URL needs no credentials (works in Docker):
 
 ```ruby
-gem "shaolin", git: "https://github.com/mantissa-lab/shaolin.git", tag: "v0.1.0", glob: "gems/*/*.gemspec"
+gem "shaolin", git: "https://github.com/mantissa-lab/shaolin.git", tag: "v0.2.0", glob: "gems/*/*.gemspec"
 ```
 
 ```ruby
